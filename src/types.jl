@@ -6,6 +6,7 @@ A struct to hold information about the specific scenario under investigation.
 Base.@kwdef struct Scenario
     problem_type::String
     interval_length::Int32
+    payback_period::Union{Int32, Nothing}
 end
 
 
@@ -18,8 +19,8 @@ electricity tariff offered by a utility.
 Base.@kwdef struct Tariff
     utility_name::Union{String, Nothing}
     tariff_name::Union{String, Nothing}
-    demand_price::DataFrames.DataFrame
-    energy_price::DataFrames.DataFrame
+    demand_rates::DataFrames.DataFrame
+    energy_rates::DataFrames.DataFrame
     nem_enabled::Bool
     nem_rate::Union{DataFrames.DataFrame, Nothing}
 end
@@ -67,7 +68,7 @@ characteristics about the consumer's base demand.
 Base.@kwdef struct Demand
     demand_profile::DataFrames.DataFrame
     shift_enabled::Bool
-    shift_percentage::Union{Float64, Nothing}
+    shift_capacity_profile::Union{DataFrames.DataFrame, Nothing}
     shift_duration::Union{Int32, Nothing}
 end
 
@@ -85,6 +86,7 @@ Base.@kwdef struct Solar
     pv_capital_cost::Union{Float64, Nothing}
     inverter_eff::Union{Float64, Nothing}
     inverter_capital_cost::Union{Float64, Nothing}
+    lifespan::Union{Int32, Nothing}
 end
 
 
