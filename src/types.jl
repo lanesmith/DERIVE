@@ -5,8 +5,9 @@ A struct to hold information about the specific scenario under investigation.
 """
 Base.@kwdef struct Scenario
     problem_type::String
-    interval_length::Int32
-    payback_period::Union{Int32, Nothing}
+    interval_length::String
+    payback_period::Union{Int64, Nothing}
+    year::Int64
 end
 
 
@@ -19,10 +20,17 @@ electricity tariff offered by a utility.
 Base.@kwdef struct Tariff
     utility_name::Union{String, Nothing}
     tariff_name::Union{String, Nothing}
-    demand_rates::DataFrames.DataFrame
-    energy_rates::DataFrames.DataFrame
+    weekday_weekend_split::Bool
+    holiday_split::Bool
+    months_by_season::Dict
+    energy_tou_rates::Union{Dict, Nothing}
+    energy_tiered_rates::Union{Dict, Nothing}
+    monthly_maximum_demand_rates::Union{Dict, Nothing}
+    monthly_demand_tou_rates::Union{Dict, Nothing}
+    daily_demand_tou_rates::Union{Dict, Nothing}
     nem_enabled::Bool
-    nem_rate::Union{DataFrames.DataFrame, Nothing}
+    nem_non_bypassable_charge::Union{Float64, Nothing}
+    customer_charge::Dict
 end
 
 
@@ -35,13 +43,13 @@ market products offered by an independent system operator (ISO).
 Base.@kwdef struct Market
     iso_name::Union{String, Nothing}
     reg_up_enabled::Bool
-    reg_up_price::Union{DataFrames.DataFrame, Nothing}
+    reg_up_prices::Union{DataFrames.DataFrame, Nothing}
     reg_dn_enabled::Bool
-    reg_dn_price::Union{DataFrames.DataFrame, Nothing}
+    reg_dn_prices::Union{DataFrames.DataFrame, Nothing}
     sp_res_enabled::Bool
-    sp_res_price::Union{DataFrames.DataFrame, Nothing}
+    sp_res_prices::Union{DataFrames.DataFrame, Nothing}
     ns_res_enabled::Bool
-    ns_res_price::Union{DataFrames.DataFrame, Nothing}
+    ns_res_prices::Union{DataFrames.DataFrame, Nothing}
 end
 
 
@@ -69,7 +77,7 @@ Base.@kwdef struct Demand
     demand_profile::DataFrames.DataFrame
     shift_enabled::Bool
     shift_capacity_profile::Union{DataFrames.DataFrame, Nothing}
-    shift_duration::Union{Int32, Nothing}
+    shift_duration::Union{Int64, Nothing}
 end
 
 
@@ -82,11 +90,11 @@ necessary PV module and array specifications.
 Base.@kwdef struct Solar
     enabled::Bool
     generation_profile::Union{DataFrames.DataFrame, Nothing}
-    power_capacity::Union{Int32, Nothing}
+    power_capacity::Union{Int64, Nothing}
     pv_capital_cost::Union{Float64, Nothing}
     inverter_eff::Union{Float64, Nothing}
     inverter_capital_cost::Union{Float64, Nothing}
-    lifespan::Union{Int32, Nothing}
+    lifespan::Union{Int64, Nothing}
 end
 
 
@@ -98,10 +106,25 @@ A struct to hold information about the specifications of the battery energy stor
 """
 Base.@kwdef struct Storage
     enabled::Bool
-    power_capacity::Union{Int32, Nothing}
-    energy_capacity::Union{Int32, Nothing}
+    power_capacity::Union{Int64, Nothing}
+    energy_capacity::Union{Int64, Nothing}
     charge_eff::Union{Float64, Nothing}
     discharge_eff::Union{Float64, Nothing}
     capital_cost::Union{Float64, Nothing}
-    lifespan::Union{Int32, Nothing}
+    lifespan::Union{Int64, Nothing}
+end
+
+
+"""
+    Grid
+
+A struct to hold information about the specifications of the electric power grid system 
+to which consumers are connected.
+"""
+Base.@kwdef struct Grid
+    nodes::Union{Array{Int64, 1}, Nothing}
+    branches::Union{Array{Int64, 1}, Nothing}
+    branches_from::Union{Array{Int64, 1}, Nothing}
+    branches_to::Union{Array{Int64, 1}, Nothing}
+    branch_capacity::Union{Array{Float64, 1}, Nothing}
 end
