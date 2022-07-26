@@ -4,10 +4,11 @@
 Load scenario parameters from .csv file and return them in a Scenario struct.
 """
 function read_scenario(filepath::String)
-    # Initialize scenario
+    # Initialize scenario struct
     scenario = Dict{String,Any}(
         "problem_type" => "",
-        "interval_length" => "",
+        "interval_length" => "hour",
+        "optimization_horizon" => "month",
         "payback_period" => nothing,
         "year" => 0,
     )
@@ -21,10 +22,10 @@ function read_scenario(filepath::String)
 
         # Try assigning the different scenario parameters from the file
         for k in keys(scenario)
-            try
+            if !ismissing(scenario_parameters[1, k])
                 scenario[k] = scenario_parameters[1, k]
-            catch e
-                if k in ("payback_period")
+            else
+                if k in ["payback_period"]
                     println(
                         "The " * k * " parameter is not defined. Will default to nothing.",
                     )
@@ -46,9 +47,9 @@ function read_scenario(filepath::String)
     end
 
     # Check the problem type
-    if uppercase(scenario["problem_type"]) in ("PRODUCTION_COST", "PCM")
+    if uppercase(scenario["problem_type"]) in ["PRODUCTION_COST", "PCM"]
         scenario["problem_type"] = "PCM"
-    elseif uppercase(scenario["problem_type"]) in ("CAPACITY_EXPANSION", "CEM")
+    elseif uppercase(scenario["problem_type"]) in ["CAPACITY_EXPANSION", "CEM"]
         scenario["problem_type"] = "CEM"
     else
         throw(
@@ -60,13 +61,25 @@ function read_scenario(filepath::String)
     end
 
     # Check the interval length
-    if uppercase(scenario["interval_length"]) in ("DAY", "MONTH", "YEAR")
+    if uppercase(scenario["interval_length"]) in ["HOUR"]
         scenario["interval_length"] = uppercase(scenario["interval_length"])
     else
         throw(
             ErrorException(
-                "The interval length must be either day, month, or year. Please try " *
-                "again.",
+                "Only interval lengths of one hour are supported at this time. Please " *
+                "try again.",
+            ),
+        )
+    end
+
+    # Check the optimization horizon
+    if uppercase(scenario["optimization_horizon"]) in ["DAY", "MONTH", "YEAR"]
+        scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
+    else
+        throw(
+            ErrorException(
+                "The optimization horizon must be either a day, month, or year. Please " *
+                "try again.",
             ),
         )
     end
@@ -86,7 +99,7 @@ end
 Load tariff prices and parameters from .csv files and return them in a Tariff struct.
 """
 function read_tariff(filepath::String)
-    # Initialize tariff
+    # Initialize tariff struct
     tariff = Dict{String,Any}(
         "utility_name" => nothing,
         "tariff_name" => nothing,
@@ -116,10 +129,10 @@ function read_tariff(filepath::String)
 
     # Try assigning the similar tariff parameters from the file
     for k in intersect(keys(tariff), names(tariff_parameters))
-        try
+        if tariff_parameters[1, k] != "missing"
             tariff[k] = tariff_parameters[1, k]
-        catch e
-            if k in ("utility_name", "tariff_name")
+        else
+            if k in ["utility_name", "tariff_name"]
                 println("The " * k * " parameter is not defined. Will default to nothing.")
             else
                 println("The " * k * " parameter is not defined. Will default to false.")
@@ -223,6 +236,11 @@ function read_tariff(filepath::String)
         end
     end
 
+    # Check to make sure the energy charge is provided
+    if tariff["energy_tou_rates"] == nothing
+        throw(ErrorException("No energy rates were provided. Please try again."))
+    end
+
     # Convert Dict to NamedTuple
     tariff = (; (Symbol(k) => v for (k, v) in tariff)...)
 
@@ -238,7 +256,7 @@ end
 Load market prices and parameters from .csv files and return them in a Market struct.
 """
 function read_market(filepath::String)
-    # Initialize market
+    # Initialize market struct
     market = Dict{String,Any}(
         "iso_name" => nothing,
         "reg_up_enabled" => false,
@@ -270,7 +288,7 @@ function read_market(filepath::String)
             try
                 market[k] = market_parameters[1, k]
             catch e
-                if k in ("iso_name")
+                if k in ["iso_name"]
                     println(
                         "The " * k * " parameter is not defined. Will default to nothing.",
                     )
@@ -291,7 +309,7 @@ function read_market(filepath::String)
     end
 
     # Try loading the market price profiles if they are enabled
-    for market_product in ("reg_up", "reg_dn", "sp_res", "ns_res")
+    for market_product in ["reg_up", "reg_dn", "sp_res", "ns_res"]
         if market[market_product * "_enabled"]
             try
                 market[market_product * "_prices"] = DataFrames.DataFrame(
@@ -329,7 +347,7 @@ Load distributed energy resource (DER) incentive prices and parameters from .csv
 and return them in an Incentives struct.
 """
 function read_incentives(filepath::String)
-    # Initialize incentives
+    # Initialize incentives struct
     incentives = Dict{String,Any}(
         "itc_enabled" => false,
         "itc_rate" => nothing,
@@ -349,7 +367,7 @@ function read_incentives(filepath::String)
             try
                 incentives[k] = incentives_parameters[1, k]
             catch e
-                if k in ("itc_enabled", "sgip_enabled")
+                if k in ["itc_enabled", "sgip_enabled"]
                     println(
                         "The " * k * " parameter is not defined. Will default to false.",
                     )
@@ -385,7 +403,7 @@ Load demand profiles and parameters for both fixed and variable demand from .csv
 and return them in a Demand struct.
 """
 function read_demand(filepath::String)
-    # Initialize demand
+    # Initialize demand struct
     demand = Dict{String,Any}(
         "shift_enabled" => false,
         "shift_capacity_profile" => nothing,
@@ -471,7 +489,7 @@ Load solar photovoltaic (PV) generation profiles and parameters from .csv files 
 return them in a Solar struct.
 """
 function read_solar(filepath::String)
-    # Initialize solar
+    # Initialize solar struct
     solar = Dict{String,Any}(
         "enabled" => false,
         "generation_profile" => nothing,
@@ -549,7 +567,7 @@ Load battery energy storage (BES) parameters from .csv files and return them in 
 Storage struct.
 """
 function read_storage(filepath::String)
-    # Initialize storage
+    # Initialize storage struct
     storage = Dict{String,Any}(
         "enabled" => false,
         "power_capacity" => nothing,
@@ -593,7 +611,7 @@ function read_storage(filepath::String)
     end
 
     # Check the provided efficiencies
-    for k in ("charge_eff", "discharge_eff")
+    for k in ["charge_eff", "discharge_eff"]
         if storage[k] > 1.0
             @error(
                 "The provided " *

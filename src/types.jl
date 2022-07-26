@@ -6,6 +6,7 @@ A struct to hold information about the specific scenario under investigation.
 Base.@kwdef struct Scenario
     problem_type::String
     interval_length::String
+    optimization_horizon::String
     payback_period::Union{Int64,Nothing}
     year::Int64
 end
