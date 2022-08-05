@@ -3,7 +3,10 @@
 
 Create the profiles that describe how consumers are exposed to energy charges.
 """
-function create_energy_rate_profile(scenario::Scenario, tariff::Tariff)
+function create_energy_rate_profile(
+    scenario::Scenario,
+    tariff::Tariff,
+)::DataFrames.DataFrame
     # Determine whether it is a leap year and create annual profile with hourly increments
     if scenario.year % 4 == 0
         profile = DataFrames.DataFrame(
@@ -124,30 +127,18 @@ Create the mask profiles and corresponding rate references that describe how con
 are exposed to demand charges.
 """
 function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
-    # Determine whether it is a leap year and create mask with hourly increments
-    if scenario.year % 4 == 0
-        mask = DataFrames.DataFrame(
-            "timestamp" => collect(
-                Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                    scenario.year,
-                    12,
-                    31,
-                    23,
-                ),
+    # Initialize the demand mask
+    mask = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                scenario.year,
+                12,
+                31,
+                23,
             ),
-        )
-    else
-        mask = DataFrames.DataFrame(
-            "timestamp" => collect(
-                Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                    scenario.year,
-                    12,
-                    31,
-                    23,
-                ),
-            ),
-        )
-    end
+        ),
+    )
+    rates = Dict{String,Float64}()
 
     # Create inverse mapping of seasons to months
     seasons_by_month = Dict(
@@ -155,8 +146,60 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
         v in values(tariff.months_by_season[k])
     )
 
-    # Return the mask and rates for the demand rates
-    return mask, rates
+    # Determine whether there is a distinction between rates on a monthly basis
+    if tariff.monthly_demand_tou_rates != nothing
+        if tariff.seasonal_month_split
+            for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+                for h in sort!(
+                    collect(
+                        keys(
+                            tariff.monthly_demand_tou_rates[collect(
+                                keys(tariff.monthly_demand_tou_rates),
+                            )[1]],
+                        ),
+                    ),
+                )
+                    if tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] !=
+                       ""
+                        # Check if a demand charge has already been accounted for
+                        if !(
+                            seasons_by_month[m] *
+                            "_monthly_" *
+                            tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] in
+                            names(mask)
+                        )
+                            mask[
+                                :,
+                                seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
+                            ] = zeros(length(mask[:, "timestamp"]))
+                            rates[seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"]] =
+                                tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["rate"]
+                        end
+
+                        # Set the mask accordingly
+                        mask[
+                            :,
+                            seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
+                        ] .=
+                            ifelse.(
+                                (hour.(mask.timestamp) .== h) .&
+                                (month.(mask.timestamp) .== m),
+                                1,
+                                mask[
+                                    :,
+                                    seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
+                                ],
+                            )
+                    end
+                end
+            end
+        else
+            nothing
+        end
+    end
+
+    # Return the rates and mask for the demand rates
+    return rates, mask
 end
 
 """
@@ -165,7 +208,10 @@ end
 Create the profile that describes the rate at which consumers can sell excess solar 
 generation via a net energy metering (NEM) program.
 """
-function create_nem_rate_profile(tariff::Tariff, energy_price_profile::DataFrame)
+function create_nem_rate_profile(
+    tariff::Tariff,
+    energy_price_profile::DataFrame,
+)::DataFrames.DataFrame
     # Create profile of NEM sell prices using the profile of energy prices
     profile = deepcopy(energy_price_profile)
     profile[:, "rates"] .-= tariff.nem_non_bypassable_charge
@@ -180,7 +226,7 @@ end
 Adjust a provided profile according to the weekend dates.
 """
 function adjust_for_weekends(
-    profile::DataFrame,
+    profile::DataFrames.DataFrame,
     month_id::Int64,
     weekend_value::Float64,
     original_value::Vector{Float64},
@@ -198,12 +244,12 @@ end
 """
     adjust_for_holidays(profile, month_id, holiday_value, original_value)
 
-Adjust a provided profile according to the following holidays: New Years Day, Prsidents 
+Adjust a provided profile according to the following holidays: New Years Day, Prsidents' 
 Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving Day, and 
 Christmas Day.
 """
 function adjust_for_holidays(
-    profile::DataFrame,
+    profile::DataFrames.DataFrame,
     month_id::Int64,
     holiday_value::Float64,
     original_value::Vector{Float64},
@@ -249,12 +295,12 @@ end
 Create the profiles that describe how consumers are exposed to demand charges, energy 
 charges, and net metering sell rates.
 """
-function create_rate_profiles(scenario::Scenario, tariff::Tariff)
+function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Prices
     # Initialize prices struct
     prices = Dict{String,Any}(
         "energy" => nothing,
         "demand_rates" => nothing,
-        "demand_masks" => nothing,
+        "demand_mask" => nothing,
         "nem" => nothing,
     )
 
@@ -264,13 +310,13 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)
     # Create the demand charge profile
     if (tariff.monthly_demand_tou_rates != nothing) |
        (tariff.daily_demand_tou_rates != nothing)
-        prices["demand_rates"], prices["demand_masks"] =
+        prices["demand_rates"], prices["demand_mask"] =
             create_demand_rate_profile(scenario, tariff)
     end
 
     # Create the net energy metering (NEM) sell price profile
     if tariff.nem_enabled
-        prices["nem"] = create_nem_rate_profile(tariff, energy_price_profile)
+        prices["nem"] = create_nem_rate_profile(tariff, prices["energy"])
     end
 
     # Convert Dict to NamedTuple

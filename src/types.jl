@@ -35,6 +35,19 @@ Base.@kwdef struct Tariff
 end
 
 """
+    Prices
+
+A struct to hold electricity tariff price profiles, developed from information stored in 
+the Tariff struct.
+"""
+Base.@kwdef struct Prices
+    energy::DataFrames.DataFrame
+    demand_rates::Union{Dict,Nothing}
+    demand_mask::Union{DataFrames.DataFrame,Nothing}
+    nem::Union{DataFrames.DataFrame,Nothing}
+end
+
+"""
     Market
 
 A struct to hold information about the different prices and characteristics of different 
