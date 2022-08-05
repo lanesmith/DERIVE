@@ -3,7 +3,7 @@
 
 Load scenario parameters from .csv file and return them in a Scenario struct.
 """
-function read_scenario(filepath::String)
+function read_scenario(filepath::String)::Scenario
     # Initialize scenario struct
     scenario = Dict{String,Any}(
         "problem_type" => "",
@@ -98,7 +98,7 @@ end
 
 Load tariff prices and parameters from .csv files and return them in a Tariff struct.
 """
-function read_tariff(filepath::String)
+function read_tariff(filepath::String)::Tariff
     # Initialize tariff struct
     tariff = Dict{String,Any}(
         "utility_name" => nothing,
@@ -195,17 +195,17 @@ function read_tariff(filepath::String)
                                 :,
                             ],
                         )
-                            for h = (r["energy_tou_start"] + 1):r["energy_tou_end"]
+                            for h = (r[k * "_start"] + 1):r[k * "_end"]
                                 if h == 24
                                     tariff[k * "_rates"][s][0]["rate"] =
-                                        r["energy_tou_values"]
+                                        r[k * "_values"]
                                     tariff[k * "_rates"][s][0]["label"] =
-                                        r["energy_tou_labels"]
+                                        r[k * "_labels"]
                                 else
                                     tariff[k * "_rates"][s][h]["rate"] =
-                                        r["energy_tou_values"]
+                                        r[k * "_values"]
                                     tariff[k * "_rates"][s][h]["label"] =
-                                        r["energy_tou_labels"]
+                                        r[k * "_labels"]
                                 end
                             end
                         end
@@ -255,7 +255,7 @@ end
 
 Load market prices and parameters from .csv files and return them in a Market struct.
 """
-function read_market(filepath::String)
+function read_market(filepath::String)::Market
     # Initialize market struct
     market = Dict{String,Any}(
         "iso_name" => nothing,
@@ -346,7 +346,7 @@ end
 Load distributed energy resource (DER) incentive prices and parameters from .csv files 
 and return them in an Incentives struct.
 """
-function read_incentives(filepath::String)
+function read_incentives(filepath::String)::Incentives
     # Initialize incentives struct
     incentives = Dict{String,Any}(
         "itc_enabled" => false,
@@ -402,7 +402,7 @@ end
 Load demand profiles and parameters for both fixed and variable demand from .csv files 
 and return them in a Demand struct.
 """
-function read_demand(filepath::String)
+function read_demand(filepath::String)::Demand
     # Initialize demand struct
     demand = Dict{String,Any}(
         "shift_enabled" => false,
@@ -488,7 +488,7 @@ end
 Load solar photovoltaic (PV) generation profiles and parameters from .csv files and 
 return them in a Solar struct.
 """
-function read_solar(filepath::String)
+function read_solar(filepath::String)::Solar
     # Initialize solar struct
     solar = Dict{String,Any}(
         "enabled" => false,
@@ -566,7 +566,7 @@ end
 Load battery energy storage (BES) parameters from .csv files and return them in a 
 Storage struct.
 """
-function read_storage(filepath::String)
+function read_storage(filepath::String)::Storage
     # Initialize storage struct
     storage = Dict{String,Any}(
         "enabled" => false,
