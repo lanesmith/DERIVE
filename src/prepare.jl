@@ -146,55 +146,140 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
         v in values(tariff.months_by_season[k])
     )
 
-    # Determine whether there is a distinction between rates on a monthly basis
+    # Create masks and rates for monthly maximum demand charges
+    if tariff.monthly_maximum_demand_rates != nothing
+        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+            # Initialize the mask and set the rate
+            mask[:, "monthly_maximum_" * string(m)] = zeros(length(mask[:, "timestamp"]))
+            rates["monthly_maximum_" * string(m)] =
+                tariff.monthly_maximum_demand_rates[seasons_by_month[m]]["rate"]
+
+            # Set the mask accordingly
+            mask[:, "monthly_maximum_" * string(m)] =
+                ifelse.(
+                    month.(mask.timestamp) .== m,
+                    1,
+                    mask[:, "monthly_maximum_" * string(m)],
+                )
+        end
+    end
+
+    # Create masks and rates for monthly maximum time-of-use (TOU) demand charges
     if tariff.monthly_demand_tou_rates != nothing
-        if tariff.seasonal_month_split
-            for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+            for h in sort!(
+                collect(
+                    keys(
+                        tariff.monthly_demand_tou_rates[collect(
+                            keys(tariff.monthly_demand_tou_rates),
+                        )[1]],
+                    ),
+                ),
+            )
+                # Initialize the mask and set the rate
+                if tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] != ""
+                    # Check if a particular demand charge has already been accounted for
+                    if !(
+                        (
+                            "monthly_" *
+                            tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] *
+                            "_" *
+                            string(m)
+                        ) in names(mask)
+                    )
+                        mask[
+                            :,
+                            "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                m,
+                            ),
+                        ] = zeros(length(mask[:, "timestamp"]))
+                        rates["monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                            m,
+                        )] = tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["rate"]
+                    end
+
+                    # Set the mask accordingly
+                    mask[
+                        :,
+                        "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                            m,
+                        ),
+                    ] =
+                        ifelse.(
+                            (month.(mask.timestamp) .== m) .& (hour.(mask.timestamp) .== h),
+                            1,
+                            mask[
+                                :,
+                                "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                    m,
+                                ),
+                            ],
+                        )
+                end
+            end
+        end
+    end
+
+    # Create masks and rates for daily maximum time-of-use (TOU) demand charges
+    if tariff.daily_demand_tou_rates != nothing
+        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+            for d = 1:Dates.daysinmonth(Date(scenario.year, m))
                 for h in sort!(
                     collect(
                         keys(
-                            tariff.monthly_demand_tou_rates[collect(
-                                keys(tariff.monthly_demand_tou_rates),
-                            )[1]],
+                            tariff.daily_demand_tou_rates[collect(
+                                keys(tariff.daily_demand_tou_rates),
+                            )][1],
                         ),
                     ),
                 )
-                    if tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] !=
-                       ""
-                        # Check if a demand charge has already been accounted for
+                    # Initialize the mask and set the rate
+                    if tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] != ""
+                        # Check if a particular demand charge has already been accounted for
                         if !(
-                            seasons_by_month[m] *
-                            "_monthly_" *
-                            tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] in
-                            names(mask)
+                            (
+                                "daily_" *
+                                tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] *
+                                "_" *
+                                string(m) *
+                                "_" *
+                                string(d)
+                            ) in names(mask)
                         )
                             mask[
                                 :,
-                                seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
+                                "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                    m,
+                                ) * "_" * string(d),
                             ] = zeros(length(mask[:, "timestamp"]))
-                            rates[seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"]] =
-                                tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["rate"]
+                            rates["daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                m,
+                            ) * "_" * string(d)] =
+                                tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["rate"]
                         end
 
                         # Set the mask accordingly
                         mask[
                             :,
-                            seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
-                        ] .=
+                            "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                m,
+                            ) * "_" * string(d),
+                        ] =
                             ifelse.(
-                                (hour.(mask.timestamp) .== h) .&
-                                (month.(mask.timestamp) .== m),
+                                (month.(mask.timestamp) .== m) .&
+                                (day.(mask.timestep) .== d) .&
+                                (hour.(mask.timestamp) .== h),
                                 1,
                                 mask[
                                     :,
-                                    seasons_by_month[m] * "_monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"],
+                                    "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                        m,
+                                    ) * "_" * string(d),
                                 ],
                             )
                     end
                 end
             end
-        else
-            nothing
         end
     end
 
@@ -218,6 +303,45 @@ function create_nem_rate_profile(
 
     # Return the profile for NEM sell rates
     return profile
+end
+
+"""
+    create_rate_profiles(scenario, tariff)
+
+Create the profiles that describe how consumers are exposed to demand charges, energy 
+charges, and net metering sell rates.
+"""
+function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Prices
+    # Initialize prices struct
+    prices = Dict{String,Any}(
+        "energy" => nothing,
+        "demand_rates" => nothing,
+        "demand_mask" => nothing,
+        "nem" => nothing,
+    )
+
+    # Create the energy charge profile
+    prices["energy"] = create_energy_rate_profile(scenario, tariff)
+
+    # Create the demand charge profile
+    if (tariff.monthly_demand_tou_rates != nothing) |
+       (tariff.daily_demand_tou_rates != nothing)
+        prices["demand_rates"], prices["demand_mask"] =
+            create_demand_rate_profile(scenario, tariff)
+    end
+
+    # Create the net energy metering (NEM) sell price profile
+    if tariff.nem_enabled
+        prices["nem"] = create_nem_rate_profile(tariff, prices["energy"])
+    end
+
+    # Convert Dict to NamedTuple
+    prices = (; (Symbol(k) => v for (k, v) in prices)...)
+
+    # Convert NamedTuple to Tariff object
+    prices = Prices(; prices...)
+
+    return prices
 end
 
 """
@@ -287,43 +411,4 @@ function adjust_for_holidays(
         holiday_value,
         original_value,
     )
-end
-
-"""
-    create_rate_profiles(scenario, tariff)
-
-Create the profiles that describe how consumers are exposed to demand charges, energy 
-charges, and net metering sell rates.
-"""
-function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Prices
-    # Initialize prices struct
-    prices = Dict{String,Any}(
-        "energy" => nothing,
-        "demand_rates" => nothing,
-        "demand_mask" => nothing,
-        "nem" => nothing,
-    )
-
-    # Create the energy charge profile
-    prices["energy"] = create_energy_rate_profile(scenario, tariff)
-
-    # Create the demand charge profile
-    if (tariff.monthly_demand_tou_rates != nothing) |
-       (tariff.daily_demand_tou_rates != nothing)
-        prices["demand_rates"], prices["demand_mask"] =
-            create_demand_rate_profile(scenario, tariff)
-    end
-
-    # Create the net energy metering (NEM) sell price profile
-    if tariff.nem_enabled
-        prices["nem"] = create_nem_rate_profile(tariff, prices["energy"])
-    end
-
-    # Convert Dict to NamedTuple
-    prices = (; (Symbol(k) => v for (k, v) in prices)...)
-
-    # Convert NamedTuple to Tariff object
-    prices = Prices(; prices...)
-
-    return prices
 end
