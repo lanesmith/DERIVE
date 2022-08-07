@@ -40,78 +40,39 @@ function create_energy_rate_profile(
         v in values(tariff.months_by_season[k])
     )
 
-    # Determine whether there is a distinction between rates on a monthly basis
-    if tariff.seasonal_month_split
-        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
-            for h in sort!(
-                collect(
-                    keys(
-                        tariff.energy_tou_rates[collect(keys(tariff.energy_tou_rates))[1]],
-                    ),
-                ),
-            )
-                # Set rates by hour and month
-                profile[:, "rates"] .=
-                    ifelse.(
-                        (hour.(profile.timestamp) .== h) .&
-                        (month.(profile.timestamp) .== m),
-                        tariff.energy_tou_rates[seasons_by_month[m]][h]["rate"],
-                        profile[:, "rates"],
-                    )
-
-                # Determine whether there is a distinction between weekdays and weekends
-                if tariff.weekday_weekend_split
-                    profile[:, "rates"] .= adjust_for_weekends(
-                        profile,
-                        m,
-                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
-                        profile[:, "rates"],
-                    )
-                end
-
-                # Determine whether or not there is a distinction between holidays
-                if tariff.holiday_split
-                    profile[:, "rates"] .= adjust_for_holidays(
-                        profile,
-                        m,
-                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
-                        profile[:, "rates"],
-                    )
-                end
-            end
-        end
-    else
+    # Iterate through months and hours to set energy rates
+    for m in sort!(reduce(vcat, values(tariff.months_by_season)))
         for h in sort!(
             collect(
                 keys(tariff.energy_tou_rates[collect(keys(tariff.energy_tou_rates))[1]]),
             ),
         )
-            # Set rates by hour
+            # Set rates by hour and month
             profile[:, "rates"] .=
                 ifelse.(
-                    hour.(profile.timestamp) .== h,
-                    tariff.energy_tou_rates["base"][h]["rates"],
+                    (hour.(profile.timestamp) .== h) .& (month.(profile.timestamp) .== m),
+                    tariff.energy_tou_rates[seasons_by_month[m]][h]["rate"],
                     profile[:, "rates"],
                 )
 
             # Determine whether there is a distinction between weekdays and weekends
             if tariff.weekday_weekend_split
-                profile[:, "rates"] .= adjust_for_weekends(
-                    profile,
-                    m,
-                    tariff.energy_tou_rates["base"][0]["rate"],
-                    profile[:, "rates"],
-                )
+                profile[:, "rates"] .=
+                    ifelse.(
+                        identify_weekends(profile.timestamp, m),
+                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
+                        profile[:, "rates"],
+                    )
             end
 
             # Determine whether or not there is a distinction between holidays
             if tariff.holiday_split
-                profile[:, "rates"] .= adjust_for_holidays(
-                    profile,
-                    m,
-                    tariff.energy_tou_rates["base"][0]["rate"],
-                    profile[:, "rates"],
-                )
+                profile[:, "rates"] .=
+                    ifelse.(
+                        identify_holidays(profile.timestamp, m),
+                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
+                        profile[:, "rates"],
+                    )
             end
         end
     end
@@ -345,70 +306,57 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Prices
 end
 
 """
-    adjust_for_weekends(profile, month_id, weekend_value, original_value)
+    identify_weekends(timestamp, month_id)
 
-Adjust a provided profile according to the weekend dates.
+Indicates whether a provided timestamp is a weekend day. Can consider a DataFrame of 
+timestamps (evaluated pointwise) or a single timestamp.
 """
-function adjust_for_weekends(
-    profile::DataFrames.DataFrame,
+function identify_weekends(
+    timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
-    weekend_value::Float64,
-    original_value::Vector{Float64},
 )
-    return ifelse.(
-        (
-            (dayofweek.(profile.timestamp) .== Saturday) .|
-            (dayofweek.(profile.timestamp) .== Sunday)
-        ) .& (month.(profile.timestamp) .== month_id),
-        weekend_value,
-        original_value,
-    )
+    return (
+        (dayofweek.(timestamp) .== Saturday) .|
+        (dayofweek.(timestamp) .== Sunday)
+    ) .& (month.(timestamp) .== month_id)
 end
 
 """
-    adjust_for_holidays(profile, month_id, holiday_value, original_value)
+    identify_holidays(timestamp, month_id)
 
-Adjust a provided profile according to the following holidays: New Years Day, Prsidents' 
-Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving Day, and 
-Christmas Day.
+Indicates whether a provided timestamp is one of the following holidays: New Years Day, 
+Presidents' Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving Day, 
+and Christmas Day. Can consider a DataFrame of timestamps (evaluated pointwise) or a single 
+timestamp.
 """
-function adjust_for_holidays(
-    profile::DataFrames.DataFrame,
+function identify_holidays(
+    timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
-    holiday_value::Float64,
-    original_value::Vector{Float64},
 )
-    return ifelse.(
+    return (
+        ((month.(timestamp) .== 1) .& (day.(timestamp) .== 1)) .|
         (
-            ((month.(profile.timestamp) .== 1) .& (day.(profile.timestamp) .== 1)) .|
-            (
-                (month.(profile.timestamp) .== 2) .&
-                (dayofweek.(profile.timestamp) .== Monday) .&
-                (dayofweekofmonth.(profile.timestamp) .== 3)
-            ) .|
-            (
-                (month.(profile.timestamp) .== 5) .&
-                (dayofweek.(profile.timestamp) .== Monday) .&
-                (
-                    dayofweekofmonth.(profile.timestamp) .==
-                    daysofweekinmonth.(profile.timestamp)
-                )
-            ) .|
-            ((month.(profile.timestamp) .== 7) .& (day.(profile.timestamp) .== 4)) .|
-            (
-                (month.(profile.timestamp) .== 9) .&
-                (dayofweek.(profile.timestamp) .== Monday) .&
-                (dayofweekofmonth.(profile.timestamp) .== 1)
-            ) .|
-            ((month.(profile.timestamp) .== 11) .& (day.(profile.timestamp) .== 11)) .|
-            (
-                (month.(profile.timestamp) .== 11) .&
-                (dayofweek.(profile.timestamp) .== Thursday) .&
-                (dayofweekofmonth.(profile.timestamp) .== 4)
-            ) .|
-            ((month.(profile.timestamp) .== 12) .& (day.(profile.timestamp) .== 25))
-        ) .& (month.(profile.timestamp) .== month_id),
-        holiday_value,
-        original_value,
-    )
+            (month.(timestamp) .== 2) .&
+            (dayofweek.(timestamp) .== Monday) .&
+            (dayofweekofmonth.(timestamp) .== 3)
+        ) .|
+        (
+            (month.(timestamp) .== 5) .&
+            (dayofweek.(timestamp) .== Monday) .&
+            (dayofweekofmonth.(timestamp) .== daysofweekinmonth.(timestamp))
+        ) .|
+        ((month.(timestamp) .== 7) .& (day.(timestamp) .== 4)) .|
+        (
+            (month.(timestamp) .== 9) .&
+            (dayofweek.(timestamp) .== Monday) .&
+            (dayofweekofmonth.(timestamp) .== 1)
+        ) .|
+        ((month.(timestamp) .== 11) .& (day.(timestamp) .== 11)) .|
+        (
+            (month.(timestamp) .== 11) .&
+            (dayofweek.(timestamp) .== Thursday) .&
+            (dayofweekofmonth.(timestamp) .== 4)
+        ) .|
+        ((month.(timestamp) .== 12) .& (day.(timestamp) .== 25))
+    ) .& (month.(timestamp) .== month_id)
 end
