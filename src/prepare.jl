@@ -55,7 +55,7 @@ function create_energy_rate_profile(
                     profile[:, "rates"],
                 )
 
-            # Determine whether there is a distinction between weekdays and weekends
+            # Update the profile if there is a distinction between weekdays and weekends
             if tariff.weekday_weekend_split
                 profile[:, "rates"] .=
                     ifelse.(
@@ -65,7 +65,7 @@ function create_energy_rate_profile(
                     )
             end
 
-            # Determine whether or not there is a distinction between holidays
+            # Update the profile if there is a distinction between holidays and non-holidays
             if tariff.holiday_split
                 profile[:, "rates"] .=
                     ifelse.(
@@ -176,6 +176,46 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                 ),
                             ],
                         )
+
+                    # Update the mask if there is a distinction between weekdays and weekends
+                    if tariff.weekday_weekend_split
+                        mask[
+                            :,
+                            "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                m,
+                            ),
+                        ] =
+                            ifelse.(
+                                identify_weekends(mask.timestamp, m),
+                                0,
+                                mask[
+                                    :,
+                                    "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                        m,
+                                    ),
+                                ],
+                            )
+                    end
+
+                    # Update the mask if there is a distinction between holidays and non-holidays
+                    if tariff.holiday_split
+                        mask[
+                            :,
+                            "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                m,
+                            ),
+                        ] =
+                            ifelse.(
+                                identify_holidays(mask.timestamp, m),
+                                0,
+                                mask[
+                                    :,
+                                    "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                        m,
+                                    ),
+                                ],
+                            )
+                    end
                 end
             end
         end
@@ -185,59 +225,71 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     if tariff.daily_demand_tou_rates != nothing
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             for d = 1:Dates.daysinmonth(Date(scenario.year, m))
-                for h in sort!(
-                    collect(
-                        keys(
-                            tariff.daily_demand_tou_rates[collect(
-                                keys(tariff.daily_demand_tou_rates),
-                            )][1],
-                        ),
-                    ),
+                # Skip mask, rate for relevant timestamps if holidays, weekends are considered
+                if !(
+                    (
+                        tariff.weekday_weekend_split &
+                        identify_weekends(Date(scenario.year, m, d), m)
+                    ) | (
+                        tariff.holiday_split &
+                        identify_holidays(Date(scenario.year, m, d), m)
+                    )
                 )
-                    # Initialize the mask and set the rate
-                    if tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] != ""
-                        # Check if a particular demand charge has already been accounted for
-                        if !(
-                            (
-                                "daily_" *
-                                tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] *
-                                "_" *
-                                string(m) *
-                                "_" *
-                                string(d)
-                            ) in names(mask)
-                        )
-                            mask[
-                                :,
-                                "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
-                                    m,
-                                ) * "_" * string(d),
-                            ] = zeros(length(mask[:, "timestamp"]))
-                            rates["daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
-                                m,
-                            ) * "_" * string(d)] =
-                                tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["rate"]
-                        end
-
-                        # Set the mask accordingly
-                        mask[
-                            :,
-                            "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
-                                m,
-                            ) * "_" * string(d),
-                        ] =
-                            ifelse.(
-                                (month.(mask.timestamp) .== m) .&
-                                (day.(mask.timestep) .== d) .&
-                                (hour.(mask.timestamp) .== h),
-                                1,
+                    for h in sort!(
+                        collect(
+                            keys(
+                                tariff.daily_demand_tou_rates[collect(
+                                    keys(tariff.daily_demand_tou_rates),
+                                )[1]],
+                            ),
+                        ),
+                    )
+                        # Initialize the mask and set the rate
+                        if tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] !=
+                           ""
+                            # Check if a particular demand charge has already been accounted for
+                            if !(
+                                (
+                                    "daily_" *
+                                    tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] *
+                                    "_" *
+                                    string(m) *
+                                    "_" *
+                                    string(d)
+                                ) in names(mask)
+                            )
                                 mask[
                                     :,
                                     "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                         m,
                                     ) * "_" * string(d),
-                                ],
-                            )
+                                ] = zeros(length(mask[:, "timestamp"]))
+                                rates["daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                    m,
+                                ) * "_" * string(d)] =
+                                    tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["rate"]
+                            end
+
+                            # Set the mask accordingly
+                            mask[
+                                :,
+                                "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                    m,
+                                ) * "_" * string(d),
+                            ] =
+                                ifelse.(
+                                    (month.(mask.timestamp) .== m) .&
+                                    (day.(mask.timestamp) .== d) .&
+                                    (hour.(mask.timestamp) .== h),
+                                    1,
+                                    mask[
+                                        :,
+                                        "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
+                                            m,
+                                        ) * "_" * string(d),
+                                    ],
+                                )
+                        end
                     end
                 end
             end
@@ -315,10 +367,8 @@ function identify_weekends(
     timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
 )
-    return (
-        (dayofweek.(timestamp) .== Saturday) .|
-        (dayofweek.(timestamp) .== Sunday)
-    ) .& (month.(timestamp) .== month_id)
+    return ((dayofweek.(timestamp) .== Saturday) .| (dayofweek.(timestamp) .== Sunday)) .&
+           (month.(timestamp) .== month_id)
 end
 
 """
