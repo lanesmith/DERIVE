@@ -32,19 +32,10 @@ Base.@kwdef struct Tariff
     nem_enabled::Bool
     nem_non_bypassable_charge::Union{Float64,Nothing}
     customer_charge::Dict
-end
-
-"""
-    Prices
-
-A struct to hold electricity tariff price profiles, developed from information stored in 
-the Tariff struct.
-"""
-Base.@kwdef struct Prices
-    energy::DataFrames.DataFrame
-    demand_rates::Union{Dict,Nothing}
+    energy_prices::Union{DataFrames.DataFrame,Nothing}
+    demand_prices::Union{Dict,Nothing}
     demand_mask::Union{DataFrames.DataFrame,Nothing}
-    nem::Union{DataFrames.DataFrame,Nothing}
+    nem_prices::Union{DataFrames.DataFrame,Nothing}
 end
 
 """

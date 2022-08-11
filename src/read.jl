@@ -116,6 +116,10 @@ function read_tariff(filepath::String)::Tariff
         "nem_enabled" => false,
         "nem_non_bypassable_charge" => nothing,
         "customer_charge" => Dict("daily" => 0.0, "monthly" => 0.0),
+        "energy_prices" => nothing,
+        "demand_prices" => nothing,
+        "demand_mask" => nothing,
+        "nem_prices" => nothing,
     )
 
     # Try loading the tariff parameters
@@ -197,15 +201,11 @@ function read_tariff(filepath::String)::Tariff
                         )
                             for h = (r[k * "_start"] + 1):r[k * "_end"]
                                 if h == 24
-                                    tariff[k * "_rates"][s][0]["rate"] =
-                                        r[k * "_values"]
-                                    tariff[k * "_rates"][s][0]["label"] =
-                                        r[k * "_labels"]
+                                    tariff[k * "_rates"][s][0]["rate"] = r[k * "_values"]
+                                    tariff[k * "_rates"][s][0]["label"] = r[k * "_labels"]
                                 else
-                                    tariff[k * "_rates"][s][h]["rate"] =
-                                        r[k * "_values"]
-                                    tariff[k * "_rates"][s][h]["label"] =
-                                        r[k * "_labels"]
+                                    tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
+                                    tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
                                 end
                             end
                         end
