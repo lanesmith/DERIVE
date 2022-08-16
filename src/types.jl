@@ -7,6 +7,10 @@ Base.@kwdef struct Scenario
     problem_type::String
     interval_length::String
     optimization_horizon::String
+    weather_data::Union{DataFrames.DataFrame,Nothing}
+    latitude::Float64
+    longitude::Float64
+    timezone::String
     payback_period::Union{Int64,Nothing}
     year::Int64
 end
@@ -93,9 +97,15 @@ Base.@kwdef struct Solar
     generation_profile::Union{DataFrames.DataFrame,Nothing}
     power_capacity::Union{Int64,Nothing}
     pv_capital_cost::Union{Float64,Nothing}
+    collector_azimuth::Union{Float64,Nothing}
+    tilt_angle::Union{Float64,Nothing}
+    ground_reflectance::String
+    tracking::String
+    tracker_capital_cost::Union{Float64,Nothing}
     inverter_eff::Union{Float64,Nothing}
     inverter_capital_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
+    capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
 end
 
 """
