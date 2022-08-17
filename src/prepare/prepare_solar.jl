@@ -19,8 +19,8 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
         "Central" => 90,
         "Mountain" => 105,
         "Pacific" => 120,
-        "Eastern Alaska" => 135,
-        "Hawaii" => 150,
+        "Alaskan" => 135,
+        "Hawaiian" => 150,
     )
 
     # Create array of minutes that correspond with each time stamp for each day

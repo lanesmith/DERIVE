@@ -8,9 +8,9 @@ Base.@kwdef struct Scenario
     interval_length::String
     optimization_horizon::String
     weather_data::Union{DataFrames.DataFrame,Nothing}
-    latitude::Float64
-    longitude::Float64
-    timezone::String
+    latitude::Union{Float64,Nothing}
+    longitude::Union{Float64,Nothing}
+    timezone::Union{String,Nothing}
     payback_period::Union{Int64,Nothing}
     year::Int64
 end
