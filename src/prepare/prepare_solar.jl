@@ -48,7 +48,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Calculate the azimuth angle of the Sun
     ϕ_s = zeros(length(β))
     for i = 1:length(ϕ_s)
-        ϕ_s[i] = asind((cosd(δ) .* sind(hour_angle[i])) / cosd(β[i]))
+        ϕ_s[i] = asind((cosd(δ[i]) .* sind(hour_angle[i])) / cosd(β[i]))
 
         # Account for the ambiguity of arcsin: test if azimuth is greater or less than 90
         if cosd(hour_angle[i]) < (tand(δ[i]) / tand(scenario.latitude))

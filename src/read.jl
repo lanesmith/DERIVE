@@ -185,10 +185,10 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the problem type
-    if uppercase(scenario["problem_type"]) in ["PRODUCTION_COST", "PCM"]
-        scenario["problem_type"] = "PCM"
-    elseif uppercase(scenario["problem_type"]) in ["CAPACITY_EXPANSION", "CEM"]
-        scenario["problem_type"] = "CEM"
+    if lowercase(scenario["problem_type"]) in ["production_cost", "pcm"]
+        scenario["problem_type"] = "pcm"
+    elseif lowercase(scenario["problem_type"]) in ["capacity_expansion", "cem"]
+        scenario["problem_type"] = "cem"
     else
         throw(
             ErrorException(
@@ -199,7 +199,7 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the interval length
-    if uppercase(scenario["interval_length"]) in ["HOUR"]
+    if lowercase(scenario["interval_length"]) in ["hour"]
         scenario["interval_length"] = uppercase(scenario["interval_length"])
     else
         throw(
@@ -211,7 +211,7 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the optimization horizon
-    if uppercase(scenario["optimization_horizon"]) in ["DAY", "MONTH", "YEAR"]
+    if lowercase(scenario["optimization_horizon"]) in ["day", "month", "year"]
         scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
     else
         throw(
@@ -554,8 +554,11 @@ function read_demand(filepath::String)::Demand
             DataFrames.DataFrame(CSV.File(joinpath(filepath, "demand_profile.csv")))
         println("...loading demand profile")
     catch e
-        @error("Demand profile not found in " * filepath * ". Please try again.")
-        throw(ErrorException("See above."))
+        throw(
+            ErrorException(
+                "Demand profile not found in " * filepath * ". Please try again.",
+            ),
+        )
     end
 
     # Try loading the demand parameters
@@ -630,13 +633,17 @@ function read_solar(filepath::String)::Solar
     # Initialize solar struct
     solar = Dict{String,Any}(
         "enabled" => false,
-        "generation_profile" => nothing,
+        "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
         "pv_capital_cost" => nothing,
+        "collector_azimuth" => nothing,
+        "tilt_angle" => nothing,
+        "ground_reflectance" => "default",
+        "tracker" => "fixed",
+        "tracker_capital_cost" => nothing,
         "inverter_eff" => nothing,
         "inverter_capital_cost" => nothing,
         "lifespan" => nothing,
-        "capacity_factor_profile" => nothing,
     )
 
     # Try loading the solar parameters
@@ -647,16 +654,23 @@ function read_solar(filepath::String)::Solar
         println("...loading solar parameters")
 
         # Try assigning the different solar parameters from the file
-        for k in deleteat!(
-            collect(keys(solar)),
-            findall(x -> x == "generation_profile", collect(keys(solar))),
-        )
-            try
+        for k in intersect(keys(solar), names(solar_parameters))
+            if !ismissing(solar_parameters[1, k])
                 solar[k] = solar_parameters[1, k]
-            catch e
-                if k == "enabled"
+            else
+                if k in ["enabled"]
                     println(
                         "The " * k * " parameter is not defined. Will default to false.",
+                    )
+                elseif k in ["ground_reflectance"]
+                    println(
+                        "The " *
+                        k *
+                        " parameter is not defined. Will default to 'default'.",
+                    )
+                elseif k in ["tracker"]
+                    println(
+                        "The " * k * " parameter is not defined. Will default to 'fixed'.",
                     )
                 else
                     println(
@@ -673,20 +687,27 @@ function read_solar(filepath::String)::Solar
         )
     end
 
-    # Try loading the solar profile if solar is enabled
+    # Try loading the capacity factor profile if solar is enabled
     if solar["enabled"]
-        try
-            solar["generation_profile"] =
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "solar_profile.csv")))
-            println("...loading solar profile")
-        catch e
-            println(
-                "Solar profile not found in " *
-                filepath *
-                ". Solar parameters will default to not allowing solar to be " *
-                "considered.",
-            )
-            solar["enabled"] = false
+        capacity_factor_file_path = DataFrames.DataFrame(
+            CSV.File(joinpath(filepath, "solar_parameters.csv"); transpose=true),
+        )[
+            1,
+            "capacity_factor_file_path",
+        ]
+        if !ismissing(capacity_factor_file_path)
+            try
+                solar["capacity_factor_profile"] = DataFrames.DataFrame(
+                    CSV.File(joinpath(filepath, capacity_factor_file_path)),
+                )
+            catch e
+                println(
+                    "Capacity factor profile not found in " *
+                    filepath *
+                    ". Please try again.",
+                )
+                solar["enabled"] = false
+            end
         end
     end
 
@@ -752,21 +773,23 @@ function read_storage(filepath::String)::Storage
     # Check the provided efficiencies
     for k in ["charge_eff", "discharge_eff"]
         if storage[k] > 1.0
-            @error(
-                "The provided " *
-                k *
-                " parameter is greater than 1. Please only use values between 0 and " *
-                "1, inclusive."
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is greater than 1. Please only use values between 0 and " *
+                    "1, inclusive.",
+                ),
             )
-            throw(ErrorException("See above."))
         elseif storage[k] < 0.0
-            @error(
-                "The provided " *
-                k *
-                " parameter is less than 0. Please only use values between 0 and 1, " *
-                "inclusive."
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is less than 0. Please only use values between 0 and 1, " *
+                    "inclusive.",
+                ),
             )
-            throw(ErrorException("See above."))
         end
     end
 

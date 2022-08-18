@@ -94,18 +94,17 @@ necessary PV module and array specifications.
 """
 Base.@kwdef struct Solar
     enabled::Bool
-    generation_profile::Union{DataFrames.DataFrame,Nothing}
-    power_capacity::Union{Int64,Nothing}
+    capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
+    power_capacity::Union{Float64,Nothing}
     pv_capital_cost::Union{Float64,Nothing}
     collector_azimuth::Union{Float64,Nothing}
     tilt_angle::Union{Float64,Nothing}
     ground_reflectance::String
-    tracking::String
+    tracker::String
     tracker_capital_cost::Union{Float64,Nothing}
     inverter_eff::Union{Float64,Nothing}
     inverter_capital_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
-    capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
 end
 
 """
