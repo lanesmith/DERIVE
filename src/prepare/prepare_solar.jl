@@ -93,6 +93,9 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
         cosθ = sind.(β .+ Σ)
     end
 
+    # Correct for infeasible incidence angles
+    replace!(x -> acosd(x) > 90 ? 0 : x, cosθ)
+
     # Calculate the beam insolation on the collector
     beam_insolation = scenario.weather_data[:, "DNI"] .* cosθ
 
