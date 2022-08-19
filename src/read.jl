@@ -635,6 +635,17 @@ function read_solar(filepath::String)::Solar
         "enabled" => false,
         "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
+        "module_manufacturer" => nothing,
+        "module_name" => nothing,
+        "module_nominal_power" => nothing,
+        "module_rated_voltage" => nothing,
+        "module_rated_current" => nothing,
+        "module_oc_voltage" => nothing,
+        "module_sc_current" => nothing,
+        "module_voltage_temp_coeff" => nothing,
+        "module_current_temp_coeff" => nothing,
+        "module_number_of_cells" => nothing,
+        "module_cell_material" => nothing,
         "pv_capital_cost" => nothing,
         "collector_azimuth" => nothing,
         "tilt_angle" => nothing,
@@ -708,6 +719,31 @@ function read_solar(filepath::String)::Solar
                 )
                 solar["enabled"] = false
             end
+        end
+
+        # Check that PV module specifications or a capacity factor profile are provided
+        if !(
+            (solar["capacity_factor_profile"] == nothing) | all(
+                x -> x == nothing,
+                [
+                    solar["module_nominal_power"],
+                    solar["module_rated_voltage"],
+                    solar["module_rated_current"],
+                    solar["module_oc_voltage"],
+                    solar["module_sc_current"],
+                    solar["module_voltage_temp_coeff"],
+                    solar["module_current_temp_coeff"],
+                    solar["module_number_of_cells"],
+                    solar["module_cell_material"],
+                ],
+            )
+        )
+            throw(
+                ErrorException(
+                    "Solar is enabled, but not enough information is provided to build " *
+                    "the capacity factor profile. Please try again.",
+                ),
+            )
         end
     end
 
