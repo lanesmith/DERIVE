@@ -646,6 +646,7 @@ function read_solar(filepath::String)::Solar
         "module_current_temp_coeff" => nothing,
         "module_number_of_cells" => nothing,
         "module_cell_material" => nothing,
+        "iv_curve_method" => nothing,
         "pv_capital_cost" => nothing,
         "collector_azimuth" => nothing,
         "tilt_angle" => nothing,
@@ -735,6 +736,7 @@ function read_solar(filepath::String)::Solar
                     solar["module_current_temp_coeff"],
                     solar["module_number_of_cells"],
                     solar["module_cell_material"],
+                    solar["iv_curve_method"],
                 ],
             )
         )
@@ -744,6 +746,20 @@ function read_solar(filepath::String)::Solar
                     "the capacity factor profile. Please try again.",
                 ),
             )
+        end
+
+        # Check the specified method for calculating the PV's I-V curve
+        if solar["iv_curve_method"] != nothing
+            if lowercase(solar["iv_curve_method"]) in ["villalva"]
+                solar["iv_curve_method"] = lowercase(solar["iv_curve_method"])
+            else
+                throw(
+                    ErrorException(
+                        "A supported method for determining the PV's I-V curve is not " *
+                        "provided. Please try again.",
+                    ),
+                )
+            end
         end
     end
 

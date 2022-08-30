@@ -3,8 +3,7 @@
 
 Calculates the irradiance as observed by the simulated solar photovoltaic (PV) system. 
 Irradiance is based on weather data and the position of the PV array. Equations are 
-obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by Gilbert M. 
-Masters.
+obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by Masters.
 """
 function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Create array of day numbers that correspond with each time stamp
@@ -153,17 +152,199 @@ end
 """
     calculate_solar_generation_profile(scenario, solar)
 
-
+Calculate the power generation profile for the specified PV system using the specified 
+weather data and a supported solution method. The power generation profile is intended to 
+be used in the determination of the capacity factor profile.
 """
-function calculate_solar_generation_profile(scenario::Scenario, solar::Solar)
-    
+function calculate_solar_generation_profile(
+    scenario::Scenario,
+    solar::Solar,
+    irradiance::Vector,
+)
+    # Initialize a dictionary to hold the constants needed for calculating the I-V curve
+    constants = Dict{String,Any}()
+
+    # Define necessary scientific constants
+    constants["boltzmanns"] = 1.380649e-23
+    constants["electron_charge"] = 1.602176634e-19
+
+    # Define bandgaps for different materials
+    # Source: http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/Semgap.html
+    bandgaps_for_materials = Dict(
+        "Silicon" => 1.11,
+        "Germanium" => 0.66,
+        "Indium Antimonide" => 0.17,
+        "Indium Arsenide" => 0.36,
+        "Indium Phosphide" => 1.27,
+        "Gallium Phosphide" => 2.25,
+        "Gallium Aresenide" => 1.43,
+        "Gallium Antimonide" => 0.68,
+        "Cadmium Selenide" => 1.74,
+        "Cadmium Telluride" => 1.44,
+        "Zinc Oxide" => 3.20,
+        "Zinc Sulfide" => 3.60,
+    )
+    constants["bandgap_energy"] =
+        electron_volts_for_materials[titlecase(solar.module_cell_material)] *
+        electron_charge
+
+    # Define values associated with standard test conditions (STC)
+    constants["nom_temp"] = 298.15
+    constants["nom_irr"] = 1000
+
+    if solar.iv_curve_method == "villalva"
+        return villalva_iv_curve_method(scenario, solar, irradiance, constants)
+    end
 end
 
 """
-    create_solar_capacity_factor_profile(scenario, solar)
+    villalva_iv_curve_method(scenario, solar, constants)
 
+Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
+the method outlined in Villalva et al., 'Comprehensive Approach to Modeling and Simulation 
+of Photovoltaic Arrays,' IEEE Transactions on Power Electronics, 2009. Supporting equations 
+are used from 'Power Electronics and Control Techniques for Maximum Energy Harvesting in 
+Photovoltaic Systems' by Femia, et al.
+"""
+function villalva_iv_curve_method(
+    scenario::Scenario,
+    solar::Solar,
+    irradiance::Vector,
+    constants::Dict,
+)
+    # Convert temperature from Celsius to Kelvin
+    temperature = scenario.weather_data[:, "Temperature"] .+ 273.15
+
+    # Calculate the photo-induced current
+    nom_ipv = solar.module_sc_current
+    ipv =
+        nom_ipv .* (irradiance ./ constants["nom_irr"]) .*
+        (1 .+ solar.module_current_temp_coeff .* (temperature .- constants["nom_temp"]))
+
+    # Calculate the thermal voltage, which also considers the number of cells in series
+    nom_vt =
+        (solar.module_number_of_cells * constants["boltzmanns"] * constants["nom_temp"]) /
+        constants["electron_charge"]
+    vt =
+        (solar.module_number_of_cells .* constants["boltzmanns"] .* temperature) ./
+        constants["electron_charge"]
+
+    # Determine the diode ideality constant
+    a =
+        (
+            solar.module_voltage_temp_coeff -
+            (solar.module_oc_voltage / constants["nom_temp"])
+        ) / (
+            nom_vt * (
+                (solar.module_current_temp_coeff / nom_ipv) - (3 / constants["nom_temp"]) -
+                (
+                    constants["bandgap_energy"] /
+                    (constants["boltzmanns"] * constants["nom_temp"]^2)
+                )
+            )
+        )
+
+    # Calculate the saturation current
+    nom_i0 = nom_ipv / (exp(solar.module_oc_voltage / (a * nom_vt)) - 1)
+    i0 =
+        (
+            nom_ipv .+
+            solar.module_current_temp_coeff .* (temperature .- constants["nom_temp"])
+        ) ./ (
+            exp.(
+                (
+                    solar.module_oc_voltage .+
+                    solar.module_voltage_temp_coeff .*
+                    (temperature .- constants["nom_temp"])
+                ) ./ (a .* vt),
+            ) .- 1
+        )
+
+    # Create a change of variable to solve for the series and shunt resistances explicitly
+    x =
+        lambertw.(
+            solar.module_rated_voltage .*
+            (2 * solar.module_rated_current .- ipv .- nom_i0) .* exp(
+                solar.module_rated_voltage *
+                ((solar.module_rated_voltage - 2 * a * nom_vt) / (a^2 * nom_vt^2)),
+            ) ./ (a * nom_i0 * nom_vt),
+        ) .+ (2 * (solar.module_rated_voltage / (a * nom_vt))) .-
+        (solar.module_rated_voltage^2 / (a^2 * nom_vt^2))
+
+    # Calculate the sreies and shunt resistances
+    rs = (x .* a .* nom_vt .- solar.module_rated_voltage) ./ solar.module_rated_current
+    rp =
+        (x .* a .* nom_vt) ./
+        (ipv .- solar.module_rated_current .- nom_i0 .* (exp.(x) .- 1))
+end
 
 """
-function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
-    
+    create_solar_capacity_factor_profile(scenario, solar, power_profile)
+
+Determine the capacity factor profile of the specified PV system with the given weather 
+data. The capacity factor profile is determined by taking the power generation profile for 
+a single PV module and normalizing it by the rated capacity of the PV module.
+"""
+function create_solar_capacity_factor_profile(
+    scenario::Scenario,
+    solar::Solar,
+    power_profile::Vector,
+)::Solar
+    # Initialize the updated Solar struct object
+    solar_ = Dict(string(i) => getfield(solar, i) for i in fieldnames(Solar))
+    println("...preparing solar profiles")
+end
+
+"""
+    lambertw(z, tol)
+
+Solve the principal branch of the Lambert W function using Halley's method. Assume that 
+the input, z, is real and sufficiently greater than the branch point of -1/e. Equations 
+are obtained from Corless et. al, 'On the Lambert W Function,' Advances in Computational 
+Mathematics, 1996.
+"""
+function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
+    # Check that the input, z, is sufficiently greater than the branch point
+    if z < -1 / exp(1)
+        throw(
+            ErrorException(
+                "The input value to the Lambert W function is less than the branch " *
+                "point for the principal branch. Other branches of the Lambert W " *
+                "function are not supported by this solver. Please try again.",
+            ),
+        )
+    end
+
+    # Provide an initial guess of the error
+    if z > 1.5
+        w_ = log(z) - log(log(z))
+    elseif z <= -0.3
+        # Used as z -> -1 / exp(1), which is the branch point
+        w_ = -1 + sqrt(2 * (exp(1) * z + 1))
+    else
+        # Used for z near 0, derived from a (3, 2)-Pade approximation for W_0(z) around 0
+        w_ = (60 * z + 114 * z^2 + 17 * z^3) / (60 + 174 * z + 101 * z^2)
+    end
+
+    # Perform Halley's method
+    for i = 1:1000
+        w =
+            w_ - (
+                (w_ - z * exp(-w_)) /
+                (w_ + 1 - (((w_ + 2) * (w_ - z * exp(-w_))) / (2 * w_ + 2)))
+            )
+        if abs(w - w_) < tol
+            # Return the solution to the Lambert W function
+            return w
+        end
+        w_ = w
+    end
+
+    # Throw error because the algorithm did not converge
+    throw(
+        ErrorException(
+            "For the value input to the Lambert W function, Halley's method did not " *
+            "converge in a sufficient number of steps. Please try again.",
+        ),
+    )
 end

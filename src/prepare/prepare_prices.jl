@@ -327,6 +327,7 @@ charges, and net metering sell rates.
 function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
     # Initialize the updated Tariff struct object
     tariff_ = Dict(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
+    println("...preparing price profiles")
 
     # Create the energy charge profile
     tariff_["energy_prices"] = create_energy_rate_profile(scenario, tariff)
