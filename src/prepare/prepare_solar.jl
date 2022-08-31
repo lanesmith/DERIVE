@@ -316,7 +316,7 @@ function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
     end
 
     # Provide an initial guess of the error
-    if z > 1.5
+    if z > 2.5
         w_ = log(z) - log(log(z))
     elseif z <= -0.3
         # Used as z -> -1 / exp(1), which is the branch point
