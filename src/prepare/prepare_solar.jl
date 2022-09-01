@@ -192,29 +192,46 @@ function calculate_solar_generation_profile(
     constants["nom_temp"] = 298.15
     constants["nom_irr"] = 1000
 
-    if solar.iv_curve_method == "villalva"
-        return villalva_iv_curve_method(scenario, solar, irradiance, constants)
+    # Calculate cell temperature and convert from Celsius to Kelvin
+    temperature =
+        scenario.weather_data[:, "Temperature"] .+
+        ((solar.module_noct - 20) / 800) .* irradiance .+ 273.15
+
+    if solar.iv_curve_method == "femia"
+        _, _, power_profile =
+            femia_iv_curve_method(scenario, solar, irradiance, temperature, constants)
+    else
+        throw(
+            ErrorException(
+                "A supported method for determining the PV's I-V curve is not provided. " *
+                "Please try again.",
+            ),
+        )
     end
+
+    # Return the power generation profile
+    return power_profile
 end
 
 """
-    villalva_iv_curve_method(scenario, solar, constants)
+    femia_iv_curve_method(
+        scenario, solar, irradiance, temperature, constants, num_iv_points
+    )
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
-the method outlined in Villalva et al., 'Comprehensive Approach to Modeling and Simulation 
-of Photovoltaic Arrays,' IEEE Transactions on Power Electronics, 2009. Supporting equations 
-are used from 'Power Electronics and Control Techniques for Maximum Energy Harvesting in 
-Photovoltaic Systems' by Femia, et al.
+the method outlined in 'Power Electronics and Control Techniques for Maximum Energy 
+Harvesting in Photovoltaic Systems' by Femia, et al. Supporting equations are used from 
+Villalva et al., 'Comprehensive Approach to Modeling and Simulation of Photovoltaic 
+Arrays,' IEEE Transactions on Power Electronics, 2009.  
 """
-function villalva_iv_curve_method(
+function femia_iv_curve_method(
     scenario::Scenario,
     solar::Solar,
     irradiance::Vector,
+    temperature::Vector,
     constants::Dict,
+    num_iv_points::Int64=1000,
 )
-    # Convert temperature from Celsius to Kelvin
-    temperature = scenario.weather_data[:, "Temperature"] .+ 273.15
-
     # Calculate the photo-induced current
     nom_ipv = solar.module_sc_current
     ipv =
@@ -276,6 +293,34 @@ function villalva_iv_curve_method(
     rp =
         (x .* a .* nom_vt) ./
         (ipv .- solar.module_rated_current .- nom_i0 .* (exp.(x) .- 1))
+
+    # Create I-V curves
+    v = zeros(length(temperature), num_iv_points)
+    θ = zeros(size(v))
+    i = zeros(size(v))
+    for j = 1:size(v)[1]
+        voc =
+            solar.module_oc_voltage +
+            solar.module_voltage_temp_coeff * (temperature[j] - constants["nom_temp"])
+        v[j, :] = collect(0:(voc / (num_iv_points - 1)):voc)
+        θ[j, :] =
+            (
+                rs[j] .* rp[j] .* i0[j] .*
+                exp.(
+                    (rp[j] .* (rs[j] .* (ipv[j] + i0[j]) .+ v[j, :])) ./
+                    (a * vt[j] * (rs[j] + rp[j])),
+                )
+            ) ./ ((rs[j] + rp[j]) * a * vt[j])
+        i[j, :] =
+            ((rp[j] .* (ipv[j] + i0[j]) .- v[j, :]) ./ (rs[j] + rp[j])) .-
+            ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs[j])
+    end
+
+    # Calculate the power (i.e., enable the creation of the P-V curves)
+    p = i .* v
+
+    # Return the current, voltage, and power values for each I-V curve at each time step
+    return i, v, p, ipv, i0, vt, a, rs, rp, x, θ
 end
 
 """
@@ -285,14 +330,27 @@ Determine the capacity factor profile of the specified PV system with the given 
 data. The capacity factor profile is determined by taking the power generation profile for 
 a single PV module and normalizing it by the rated capacity of the PV module.
 """
-function create_solar_capacity_factor_profile(
-    scenario::Scenario,
-    solar::Solar,
-    power_profile::Vector,
-)::Solar
+function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
     # Initialize the updated Solar struct object
     solar_ = Dict(string(i) => getfield(solar, i) for i in fieldnames(Solar))
     println("...preparing solar profiles")
+
+    # Determine the total irradiance profile
+    irradiance = calculate_total_irradiance_profile(scenario, solar)
+
+    # Determine the solar generation profile
+    power_profile = calculate_solar_generation_profile(scenario, solar, irradiance)
+
+    # Calculate the capacity factor profile
+    solar_["capacity_factor_profile"] = power_profile ./ solar.module_nominal_power
+
+    # Convert Dict to NamedTuple
+    solar_ = (; (Symbol(k) => v for (k, v) in solar_)...)
+
+    # Convert NamedTuple to Solar object
+    solar_ = Solar(; solar_...)
+
+    return solar_
 end
 
 """

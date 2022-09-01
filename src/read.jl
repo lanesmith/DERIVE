@@ -644,6 +644,7 @@ function read_solar(filepath::String)::Solar
         "module_sc_current" => nothing,
         "module_voltage_temp_coeff" => nothing,
         "module_current_temp_coeff" => nothing,
+        "module_noct" => nothing,
         "module_number_of_cells" => nothing,
         "module_cell_material" => nothing,
         "iv_curve_method" => nothing,
@@ -723,22 +724,21 @@ function read_solar(filepath::String)::Solar
         end
 
         # Check that PV module specifications or a capacity factor profile are provided
-        if !(
-            (solar["capacity_factor_profile"] == nothing) | all(
-                x -> x == nothing,
-                [
-                    solar["module_nominal_power"],
-                    solar["module_rated_voltage"],
-                    solar["module_rated_current"],
-                    solar["module_oc_voltage"],
-                    solar["module_sc_current"],
-                    solar["module_voltage_temp_coeff"],
-                    solar["module_current_temp_coeff"],
-                    solar["module_number_of_cells"],
-                    solar["module_cell_material"],
-                    solar["iv_curve_method"],
-                ],
-            )
+        if (solar["capacity_factor_profile"] == nothing) & any(
+            x -> x == nothing,
+            [
+                solar["module_nominal_power"],
+                solar["module_rated_voltage"],
+                solar["module_rated_current"],
+                solar["module_oc_voltage"],
+                solar["module_sc_current"],
+                solar["module_voltage_temp_coeff"],
+                solar["module_current_temp_coeff"],
+                solar["module_noct"],
+                solar["module_number_of_cells"],
+                solar["module_cell_material"],
+                solar["iv_curve_method"],
+            ],
         )
             throw(
                 ErrorException(
@@ -750,7 +750,7 @@ function read_solar(filepath::String)::Solar
 
         # Check the specified method for calculating the PV's I-V curve
         if solar["iv_curve_method"] != nothing
-            if lowercase(solar["iv_curve_method"]) in ["villalva"]
+            if lowercase(solar["iv_curve_method"]) in ["femia"]
                 solar["iv_curve_method"] = lowercase(solar["iv_curve_method"])
             else
                 throw(

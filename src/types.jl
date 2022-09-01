@@ -105,6 +105,7 @@ Base.@kwdef struct Solar
     module_sc_current::Union{Float64,Nothing}
     module_voltage_temp_coeff::Union{Float64,Nothing}
     module_current_temp_coeff::Union{Float64,Nothing}
+    module_noct::Union{Float64,Nothing}
     module_number_of_cells::Union{Int64,Nothing}
     module_cell_material::Union{String,Nothing}
     iv_curve_method::Union{String,Nothing}
