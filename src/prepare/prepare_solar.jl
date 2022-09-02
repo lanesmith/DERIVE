@@ -191,17 +191,14 @@ function calculate_solar_generation_profile(
         ((solar.module_noct - 20) / 800) .* irradiance .+ 273.15
 
     # Calculate the PV module's power profile
-    _, _, power_profile =
-        desoto_iv_curve_method(scenario, solar, irradiance, temperature, constants)
+    _, _, power_profile = desoto_iv_curve_method(solar, irradiance, temperature, constants)
 
     # Return the power generation profile
     return power_profile
 end
 
 """
-    desoto_iv_curve_method(
-        scenario, solar, irradiance, temperature, constants, num_iv_points
-    )
+    desoto_iv_curve_method(solar, irradiance, temperature, constants, num_iv_points)
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
 the method outlined in De Soto et al., 'Improvement and validation of a model for 
@@ -212,7 +209,6 @@ Villalva et al., 'Comprehensive Approach to Modeling and Simulation of Photovolt
 Arrays,' IEEE Transactions on Power Electronics, 2009.
 """
 function desoto_iv_curve_method(
-    scenario::Scenario,
     solar::Solar,
     irradiance::Vector,
     temperature::Vector,
@@ -222,8 +218,10 @@ function desoto_iv_curve_method(
     # Calculate the photo-induced current
     nom_ipv = solar.module_sc_current
     ipv =
-        nom_ipv .* (irradiance ./ constants["nom_irr"]) .*
-        (1 .+ solar.module_current_temp_coeff .* (temperature .- constants["nom_temp"]))
+        (
+            nom_ipv .+
+            (solar.module_current_temp_coeff .* (temperature .- constants["nom_temp"]))
+        ) .* (irradiance ./ constants["nom_irr"])
 
     # Calculate the thermal voltage, which also considers the number of cells in series
     nom_vt =
