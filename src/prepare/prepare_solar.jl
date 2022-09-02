@@ -353,8 +353,18 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
     power_profile = calculate_solar_generation_profile(scenario, solar, irradiance)
 
     # Calculate the capacity factor profile
-    solar_["capacity_factor_profile"] =
-        maximum(power_profile, dims=2) ./ solar.module_nominal_power
+    solar_["capacity_factor_profile"] = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                scenario.year,
+                12,
+                31,
+                23,
+            ),
+        ),
+        "capacity_factor" =>
+            vec(maximum(power_profile, dims=2) ./ solar.module_nominal_power),
+    )
 
     # Convert Dict to NamedTuple
     solar_ = (; (Symbol(k) => v for (k, v) in solar_)...)
