@@ -66,9 +66,9 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Set the tilt angle of the panels
     if solar.tilt_angle == nothing
         # Use third-order polynomial fit from fixed-tilt PVWatts simulations that relates 
-        # latitude (Northern Hemisphere) and PV tilt angle; source: Jacobson et al., "World 
+        # latitude (Northern Hemisphere) and PV tilt angle; source: Jacobson et al., 'World 
         # estimates of PV optimal tilt angles and ratios of sunlight incident upon tilted 
-        # and tracked PV panels relative to horizontal panels," Solar Energy, 2018.
+        # and tracked PV panels relative to horizontal panels,' Solar Energy, 2018.
         Σ =
             1.3793 +
             scenario.latitude *
@@ -168,25 +168,18 @@ function calculate_solar_generation_profile(
     constants["boltzmanns"] = 1.380649e-23
     constants["electron_charge"] = 1.602176634e-19
 
-    # Define bandgaps for different materials
-    # Source: http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/Semgap.html
-    bandgaps_for_materials = Dict(
-        "Silicon" => 1.11,
-        "Germanium" => 0.66,
-        "Indium Antimonide" => 0.17,
-        "Indium Arsenide" => 0.36,
-        "Indium Phosphide" => 1.27,
-        "Gallium Phosphide" => 2.25,
-        "Gallium Aresenide" => 1.43,
-        "Gallium Antimonide" => 0.68,
-        "Cadmium Selenide" => 1.74,
-        "Cadmium Telluride" => 1.44,
-        "Zinc Oxide" => 3.20,
-        "Zinc Sulfide" => 3.60,
+    # Define band gaps and fitting parameters for different semiconductor materials. Data 
+    # from 'Principles of Semiconductor Devices' by Van Zeghbroeck
+    semiconductor_parameters = Dict(
+        "Silicon" =>
+            Dict("band_gap_0" => 1.166, "α_param" => 4.73e-4, "β_param" => 636),
+        "Germanium" =>
+            Dict("band_gap_0" => 0.7437, "α_param" => 4.77e-4, "β_param" => 235),
+        "Gallium Aresenide" =>
+            Dict("band_gap_0" => 1.519, "α_param" => 5.41e-4, "β_param" => 204),
     )
-    constants["bandgap_energy"] =
-        electron_volts_for_materials[titlecase(solar.module_cell_material)] *
-        electron_charge
+    constants["band_gap_data"] =
+        semiconductor_parameters[titlecase(solar.module_cell_material)]
 
     # Define values associated with standard test conditions (STC)
     constants["nom_temp"] = 298.15
@@ -197,34 +190,28 @@ function calculate_solar_generation_profile(
         scenario.weather_data[:, "Temperature"] .+
         ((solar.module_noct - 20) / 800) .* irradiance .+ 273.15
 
-    if solar.iv_curve_method == "femia"
-        _, _, power_profile =
-            femia_iv_curve_method(scenario, solar, irradiance, temperature, constants)
-    else
-        throw(
-            ErrorException(
-                "A supported method for determining the PV's I-V curve is not provided. " *
-                "Please try again.",
-            ),
-        )
-    end
+    # Calculate the PV module's power profile
+    _, _, power_profile =
+        desoto_iv_curve_method(scenario, solar, irradiance, temperature, constants)
 
     # Return the power generation profile
     return power_profile
 end
 
 """
-    femia_iv_curve_method(
+    desoto_iv_curve_method(
         scenario, solar, irradiance, temperature, constants, num_iv_points
     )
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
-the method outlined in 'Power Electronics and Control Techniques for Maximum Energy 
-Harvesting in Photovoltaic Systems' by Femia, et al. Supporting equations are used from 
+the method outlined in De Soto et al., 'Improvement and validation of a model for 
+photovoltaic array performance,' Solar Energy, 2006. Parameter estimates are determined 
+using the method outlined in 'Power Electronics and Control Techniques for Maximum Energy 
+Harvesting in Photovoltaic Systems' by Femia et al. Supporting equations are used from 
 Villalva et al., 'Comprehensive Approach to Modeling and Simulation of Photovoltaic 
-Arrays,' IEEE Transactions on Power Electronics, 2009.  
+Arrays,' IEEE Transactions on Power Electronics, 2009.
 """
-function femia_iv_curve_method(
+function desoto_iv_curve_method(
     scenario::Scenario,
     solar::Solar,
     irradiance::Vector,
@@ -246,6 +233,22 @@ function femia_iv_curve_method(
         (solar.module_number_of_cells .* constants["boltzmanns"] .* temperature) ./
         constants["electron_charge"]
 
+    # Determine the band gap energy using Varshni's empirical expression
+    nom_eg =
+        (
+            constants["band_gap_data"]["band_gap_0"] - (
+                (constants["band_gap_data"]["α_param"] * constants["nom_temp"]^2) /
+                (constants["nom_temp"] + constants["band_gap_data"]["β_param"])
+            )
+        ) * constants["electron_charge"]
+    eg =
+        (
+            constants["band_gap_data"]["band_gap_0"] .- (
+                (constants["band_gap_data"]["α_param"] .* temperature .^ 2) ./
+                (temperature .+ constants["band_gap_data"]["β_param"])
+            )
+        ) .* constants["electron_charge"]
+
     # Determine the diode ideality constant
     a =
         (
@@ -254,73 +257,81 @@ function femia_iv_curve_method(
         ) / (
             nom_vt * (
                 (solar.module_current_temp_coeff / nom_ipv) - (3 / constants["nom_temp"]) -
-                (
-                    constants["bandgap_energy"] /
-                    (constants["boltzmanns"] * constants["nom_temp"]^2)
-                )
+                (nom_eg / (constants["boltzmanns"] * constants["nom_temp"]^2))
             )
         )
 
     # Calculate the saturation current
     nom_i0 = nom_ipv / (exp(solar.module_oc_voltage / (a * nom_vt)) - 1)
     i0 =
-        (
-            nom_ipv .+
-            solar.module_current_temp_coeff .* (temperature .- constants["nom_temp"])
-        ) ./ (
-            exp.(
-                (
-                    solar.module_oc_voltage .+
-                    solar.module_voltage_temp_coeff .*
-                    (temperature .- constants["nom_temp"])
-                ) ./ (a .* vt),
-            ) .- 1
+        nom_i0 .* (temperature ./ constants["nom_temp"]) .^ 3 .*
+        exp.(
+            ((nom_eg / constants["nom_temp"]) .- (eg ./ temperature)) ./
+            constants["boltzmanns"],
         )
 
     # Create a change of variable to solve for the series and shunt resistances explicitly
     x =
-        lambertw.(
-            solar.module_rated_voltage .*
-            (2 * solar.module_rated_current .- ipv .- nom_i0) .* exp(
+        lambertw(
+            solar.module_rated_voltage *
+            (2 * solar.module_rated_current - nom_ipv - nom_i0) *
+            exp(
                 solar.module_rated_voltage *
                 ((solar.module_rated_voltage - 2 * a * nom_vt) / (a^2 * nom_vt^2)),
-            ) ./ (a * nom_i0 * nom_vt),
-        ) .+ (2 * (solar.module_rated_voltage / (a * nom_vt))) .-
+            ) / (a * nom_i0 * nom_vt),
+        ) + (2 * (solar.module_rated_voltage / (a * nom_vt))) -
         (solar.module_rated_voltage^2 / (a^2 * nom_vt^2))
 
     # Calculate the sreies and shunt resistances
-    rs = (x .* a .* nom_vt .- solar.module_rated_voltage) ./ solar.module_rated_current
-    rp =
-        (x .* a .* nom_vt) ./
-        (ipv .- solar.module_rated_current .- nom_i0 .* (exp.(x) .- 1))
+    rs = (x * a * nom_vt - solar.module_rated_voltage) / solar.module_rated_current
+    nom_rp =
+        (x * a * nom_vt) / (nom_ipv - solar.module_rated_current - nom_i0 * (exp(x) - 1))
+    rp = nom_rp .* (constants["nom_irr"] ./ irradiance)
 
     # Create I-V curves
     v = zeros(length(temperature), num_iv_points)
     θ = zeros(size(v))
     i = zeros(size(v))
     for j = 1:size(v)[1]
+        # Initialize the voltage; account for the dependence of Voc on temperature
         voc =
             solar.module_oc_voltage +
             solar.module_voltage_temp_coeff * (temperature[j] - constants["nom_temp"])
         v[j, :] = collect(0:(voc / (num_iv_points - 1)):voc)
-        θ[j, :] =
-            (
-                rs[j] .* rp[j] .* i0[j] .*
-                exp.(
-                    (rp[j] .* (rs[j] .* (ipv[j] + i0[j]) .+ v[j, :])) ./
-                    (a * vt[j] * (rs[j] + rp[j])),
-                )
-            ) ./ ((rs[j] + rp[j]) * a * vt[j])
-        i[j, :] =
-            ((rp[j] .* (ipv[j] + i0[j]) .- v[j, :]) ./ (rs[j] + rp[j])) .-
-            ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs[j])
+
+        # Create a change of variable to solve for the output current explicitly
+        if (rp[j] == Inf) & (ipv[j] == 0)
+            # Take the limit of θ[j, :] as rp[j] -> Inf
+            θ[j, :] =
+                ((rs .* i0[j]) ./ (a .* vt[j])) .*
+                exp.((rs .* i0[j] .+ v[j, :]) ./ (a .* vt[j]))
+        else
+            θ[j, :] =
+                (
+                    rs .* rp[j] .* i0[j] .*
+                    exp.(
+                        (rp[j] .* (rs .* (ipv[j] + i0[j]) .+ v[j, :])) ./
+                        (a * vt[j] * (rs + rp[j])),
+                    )
+                ) ./ ((rs + rp[j]) * a * vt[j])
+        end
+
+        # Calculate the output current
+        if (rp[j] == Inf) & (ipv[j] == 0)
+            # Take the limit of i[j, :] as rp[j] -> Inf
+            i[j, :] = i0[j] .- ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
+        else
+            i[j, :] =
+                ((rp[j] .* (ipv[j] + i0[j]) .- v[j, :]) ./ (rs + rp[j])) .-
+                ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
+        end
     end
 
     # Calculate the power (i.e., enable the creation of the P-V curves)
     p = i .* v
 
     # Return the current, voltage, and power values for each I-V curve at each time step
-    return i, v, p, ipv, i0, vt, a, rs, rp, x, θ
+    return i, v, p
 end
 
 """
@@ -342,7 +353,8 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
     power_profile = calculate_solar_generation_profile(scenario, solar, irradiance)
 
     # Calculate the capacity factor profile
-    solar_["capacity_factor_profile"] = power_profile ./ solar.module_nominal_power
+    solar_["capacity_factor_profile"] =
+        maximum(power_profile, dims=2) ./ solar.module_nominal_power
 
     # Convert Dict to NamedTuple
     solar_ = (; (Symbol(k) => v for (k, v) in solar_)...)
@@ -371,6 +383,11 @@ function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
                 "function are not supported by this solver. Please try again.",
             ),
         )
+    end
+
+    # Check if the input equals infinity and return infinity according to the limit
+    if z == Inf
+        return Inf
     end
 
     # Provide an initial guess of the error
