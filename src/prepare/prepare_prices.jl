@@ -324,37 +324,33 @@ end
 Create the profiles that describe how consumers are exposed to demand charges, energy 
 charges, and net metering sell rates.
 """
-function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Prices
-    # Initialize prices struct
-    prices = Dict{String,Any}(
-        "energy" => nothing,
-        "demand_rates" => nothing,
-        "demand_mask" => nothing,
-        "nem" => nothing,
-    )
+function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
+    # Initialize the updated Tariff struct object
+    tariff_ = Dict(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
+    println("...preparing price profiles")
 
     # Create the energy charge profile
-    prices["energy"] = create_energy_rate_profile(scenario, tariff)
+    tariff_["energy_prices"] = create_energy_rate_profile(scenario, tariff)
 
     # Create the demand charge profile
     if (tariff.monthly_demand_tou_rates != nothing) |
        (tariff.daily_demand_tou_rates != nothing)
-        prices["demand_rates"], prices["demand_mask"] =
+        tariff_["demand_prices"], tariff_["demand_mask"] =
             create_demand_rate_profile(scenario, tariff)
     end
 
     # Create the net energy metering (NEM) sell price profile
     if tariff.nem_enabled
-        prices["nem"] = create_nem_rate_profile(tariff, prices["energy"])
+        tariff_["nem_prices"] = create_nem_rate_profile(tariff, tariff_["energy_prices"])
     end
 
     # Convert Dict to NamedTuple
-    prices = (; (Symbol(k) => v for (k, v) in prices)...)
+    tariff_ = (; (Symbol(k) => v for (k, v) in tariff_)...)
 
     # Convert NamedTuple to Tariff object
-    prices = Prices(; prices...)
+    tariff_ = Tariff(; tariff_...)
 
-    return prices
+    return tariff_
 end
 
 """

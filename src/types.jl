@@ -7,6 +7,10 @@ Base.@kwdef struct Scenario
     problem_type::String
     interval_length::String
     optimization_horizon::String
+    weather_data::Union{DataFrames.DataFrame,Nothing}
+    latitude::Union{Float64,Nothing}
+    longitude::Union{Float64,Nothing}
+    timezone::Union{String,Nothing}
     payback_period::Union{Int64,Nothing}
     year::Int64
 end
@@ -32,19 +36,10 @@ Base.@kwdef struct Tariff
     nem_enabled::Bool
     nem_non_bypassable_charge::Union{Float64,Nothing}
     customer_charge::Dict
-end
-
-"""
-    Prices
-
-A struct to hold electricity tariff price profiles, developed from information stored in 
-the Tariff struct.
-"""
-Base.@kwdef struct Prices
-    energy::DataFrames.DataFrame
-    demand_rates::Union{Dict,Nothing}
+    energy_prices::Union{DataFrames.DataFrame,Nothing}
+    demand_prices::Union{Dict,Nothing}
     demand_mask::Union{DataFrames.DataFrame,Nothing}
-    nem::Union{DataFrames.DataFrame,Nothing}
+    nem_prices::Union{DataFrames.DataFrame,Nothing}
 end
 
 """
@@ -99,9 +94,26 @@ necessary PV module and array specifications.
 """
 Base.@kwdef struct Solar
     enabled::Bool
-    generation_profile::Union{DataFrames.DataFrame,Nothing}
-    power_capacity::Union{Int64,Nothing}
+    capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
+    power_capacity::Union{Float64,Nothing}
+    module_manufacturer::Union{String,Nothing}
+    module_name::Union{String,Nothing}
+    module_nominal_power::Union{Float64,Nothing}
+    module_rated_voltage::Union{Float64,Nothing}
+    module_rated_current::Union{Float64,Nothing}
+    module_oc_voltage::Union{Float64,Nothing}
+    module_sc_current::Union{Float64,Nothing}
+    module_voltage_temp_coeff::Union{Float64,Nothing}
+    module_current_temp_coeff::Union{Float64,Nothing}
+    module_noct::Union{Float64,Nothing}
+    module_number_of_cells::Union{Int64,Nothing}
+    module_cell_material::Union{String,Nothing}
     pv_capital_cost::Union{Float64,Nothing}
+    collector_azimuth::Union{Float64,Nothing}
+    tilt_angle::Union{Float64,Nothing}
+    ground_reflectance::String
+    tracker::String
+    tracker_capital_cost::Union{Float64,Nothing}
     inverter_eff::Union{Float64,Nothing}
     inverter_capital_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}

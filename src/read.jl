@@ -9,6 +9,10 @@ function read_scenario(filepath::String)::Scenario
         "problem_type" => "",
         "interval_length" => "hour",
         "optimization_horizon" => "month",
+        "weather_data" => nothing,
+        "latitude" => nothing,
+        "longitude" => nothing,
+        "timezone" => nothing,
         "payback_period" => nothing,
         "year" => 0,
     )
@@ -21,11 +25,11 @@ function read_scenario(filepath::String)::Scenario
         println("...loading scenario parameters")
 
         # Try assigning the different scenario parameters from the file
-        for k in keys(scenario)
+        for k in intersect(keys(scenario), names(scenario_parameters))
             if !ismissing(scenario_parameters[1, k])
                 scenario[k] = scenario_parameters[1, k]
             else
-                if k in ["payback_period"]
+                if k in ["latitude", "longitude", "timezone", "payback_period"]
                     println(
                         "The " * k * " parameter is not defined. Will default to nothing.",
                     )
@@ -46,11 +50,145 @@ function read_scenario(filepath::String)::Scenario
         )
     end
 
+    # Try to access the specified weather data
+    try
+        # Get the file name of the desired weather data
+        weather_file_name =
+            DataFrames.DataFrame(
+                CSV.File(joinpath(filepath, "scenario_parameters.csv"); transpose=true),
+            )[
+                1,
+                "weather_file_name",
+            ] * ".csv"
+
+        # Access the weather data from the specified location; silencewarnings set to true 
+        # to avoid excessive missing data warnings
+        weather_data = DataFrames.DataFrame(
+            CSV.File(
+                joinpath(filepath, "weather_data", weather_file_name);
+                silencewarnings=true,
+            ),
+        )
+
+        # Try to populate the latitiude and longitude data
+        for k in ["latitude", "longitude"]
+            if scenario[k] == nothing
+                try
+                    scenario[k] = abs(parse(Float64, weather_data[1, titlecase(k)]))
+                catch e
+                    throw(
+                        ErrorException(
+                            "The " *
+                            k *
+                            " parameter is not provided in the weather data. Please try again.",
+                        ),
+                    )
+                end
+            elseif floor(abs(parse(Float64, weather_data[1, titlecase(k)])); digits=1) !=
+                   floor(scenario[k]; digits=1)
+                throw(
+                    ErrorException(
+                        "User-defined " *
+                        k *
+                        " does not match that listed in the weather data. Please try again.",
+                    ),
+                )
+            end
+        end
+
+        # Create mapping between UTC offset and time zone name
+        utc_offset_to_timezone = Dict(
+            -5 => "Eastern",
+            -6 => "Central",
+            -7 => "Mountain",
+            -8 => "Pacific",
+            -9 => "Alaskan",
+            -10 => "Hawaiian",
+        )
+
+        # Try to populate the time zone data
+        if scenario["timezone"] == nothing
+            try
+                scenario["timezone"] =
+                    utc_offset_to_timezone[parse(Int64, weather_data[1, "Time Zone"])]
+            catch e
+                throw(
+                    ErrorException(
+                        "The timezone parameter is not provided in the weather data. Please try again",
+                    ),
+                )
+            end
+        elseif utc_offset_to_timezone[parse(Int64, weather_data[1, "Time Zone"])] !=
+               scenario["timezone"]
+            throw(
+                ErrorException(
+                    "User-defined time zone does not match that listed in the weather " *
+                    "data. Please try again.",
+                ),
+            )
+        end
+
+        # Trim weather_data to only include the weather data; exclude location information
+        weather_data = weather_data[2:end, all.(!ismissing, eachcol(weather_data))]
+        weather_data = rename!(weather_data, Symbol.(Vector(weather_data[1, :])))[2:end, :]
+
+        # Try to populate the weather data
+        try
+            # Initialize the DataFrame with time stamps
+            scenario["weather_data"] = DataFrames.DataFrame(
+                "timestamp" => collect(
+                    Dates.DateTime(scenario["year"], 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                        scenario["year"],
+                        12,
+                        31,
+                        23,
+                    ),
+                ),
+            )
+
+            # Check that the user-defined year is as long as the provided weather data
+            if length(scenario["weather_data"][:, "timestamp"]) !=
+               length(weather_data[:, "DNI"])
+                throw(
+                    ErrorException(
+                        "The user-defined year and weather data have a length mismatch. " *
+                        "Please try again.",
+                    ),
+                )
+            end
+
+            # Add the weather data to the appropriate DataFrame
+            insertcols!(
+                scenario["weather_data"],
+                "timestamp",
+                "DNI" => parse.(Float64, weather_data[:, "DNI"]),
+                "DHI" => parse.(Float64, weather_data[:, "DHI"]),
+                "GHI" => parse.(Float64, weather_data[:, "GHI"]),
+                "Temperature" => parse.(Float64, weather_data[:, "Temperature"]),
+                "Wind Speed" => parse.(Float64, weather_data[:, "Wind Speed"]),
+                after=true,
+            )
+        catch e
+            throw(
+                ErrorException(
+                    "The provided weather data does not contain the expected " *
+                    "information. Please try again.",
+                ),
+            )
+        end
+    catch e
+        throw(
+            ErrorException(
+                "Weather data not found in the specified location. Please try again.",
+            ),
+        )
+    end
+
     # Check the problem type
-    if uppercase(scenario["problem_type"]) in ["PRODUCTION_COST", "PCM"]
-        scenario["problem_type"] = "PCM"
-    elseif uppercase(scenario["problem_type"]) in ["CAPACITY_EXPANSION", "CEM"]
-        scenario["problem_type"] = "CEM"
+    if lowercase(scenario["problem_type"]) in ["production_cost", "pcm"]
+        scenario["problem_type"] = "pcm"
+    elseif lowercase(scenario["problem_type"]) in ["capacity_expansion", "cem"]
+        scenario["problem_type"] = "cem"
     else
         throw(
             ErrorException(
@@ -61,7 +199,7 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the interval length
-    if uppercase(scenario["interval_length"]) in ["HOUR"]
+    if lowercase(scenario["interval_length"]) in ["hour"]
         scenario["interval_length"] = uppercase(scenario["interval_length"])
     else
         throw(
@@ -73,7 +211,7 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the optimization horizon
-    if uppercase(scenario["optimization_horizon"]) in ["DAY", "MONTH", "YEAR"]
+    if lowercase(scenario["optimization_horizon"]) in ["day", "month", "year"]
         scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
     else
         throw(
@@ -87,7 +225,7 @@ function read_scenario(filepath::String)::Scenario
     # Convert Dict to NamedTuple
     scenario = (; (Symbol(k) => v for (k, v) in scenario)...)
 
-    # Convert NamedTuple to Tariff object
+    # Convert NamedTuple to Scenario object
     scenario = Scenario(; scenario...)
 
     return scenario
@@ -116,6 +254,10 @@ function read_tariff(filepath::String)::Tariff
         "nem_enabled" => false,
         "nem_non_bypassable_charge" => nothing,
         "customer_charge" => Dict("daily" => 0.0, "monthly" => 0.0),
+        "energy_prices" => nothing,
+        "demand_prices" => nothing,
+        "demand_mask" => nothing,
+        "nem_prices" => nothing,
     )
 
     # Try loading the tariff parameters
@@ -197,15 +339,11 @@ function read_tariff(filepath::String)::Tariff
                         )
                             for h = (r[k * "_start"] + 1):r[k * "_end"]
                                 if h == 24
-                                    tariff[k * "_rates"][s][0]["rate"] =
-                                        r[k * "_values"]
-                                    tariff[k * "_rates"][s][0]["label"] =
-                                        r[k * "_labels"]
+                                    tariff[k * "_rates"][s][0]["rate"] = r[k * "_values"]
+                                    tariff[k * "_rates"][s][0]["label"] = r[k * "_labels"]
                                 else
-                                    tariff[k * "_rates"][s][h]["rate"] =
-                                        r[k * "_values"]
-                                    tariff[k * "_rates"][s][h]["label"] =
-                                        r[k * "_labels"]
+                                    tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
+                                    tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
                                 end
                             end
                         end
@@ -416,8 +554,11 @@ function read_demand(filepath::String)::Demand
             DataFrames.DataFrame(CSV.File(joinpath(filepath, "demand_profile.csv")))
         println("...loading demand profile")
     catch e
-        @error("Demand profile not found in " * filepath * ". Please try again.")
-        throw(ErrorException("See above."))
+        throw(
+            ErrorException(
+                "Demand profile not found in " * filepath * ". Please try again.",
+            ),
+        )
     end
 
     # Try loading the demand parameters
@@ -492,9 +633,26 @@ function read_solar(filepath::String)::Solar
     # Initialize solar struct
     solar = Dict{String,Any}(
         "enabled" => false,
-        "generation_profile" => nothing,
+        "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
+        "module_manufacturer" => nothing,
+        "module_name" => nothing,
+        "module_nominal_power" => nothing,
+        "module_rated_voltage" => nothing,
+        "module_rated_current" => nothing,
+        "module_oc_voltage" => nothing,
+        "module_sc_current" => nothing,
+        "module_voltage_temp_coeff" => nothing,
+        "module_current_temp_coeff" => nothing,
+        "module_noct" => nothing,
+        "module_number_of_cells" => nothing,
+        "module_cell_material" => nothing,
         "pv_capital_cost" => nothing,
+        "collector_azimuth" => nothing,
+        "tilt_angle" => nothing,
+        "ground_reflectance" => "default",
+        "tracker" => "fixed",
+        "tracker_capital_cost" => nothing,
         "inverter_eff" => nothing,
         "inverter_capital_cost" => nothing,
         "lifespan" => nothing,
@@ -508,16 +666,23 @@ function read_solar(filepath::String)::Solar
         println("...loading solar parameters")
 
         # Try assigning the different solar parameters from the file
-        for k in deleteat!(
-            collect(keys(solar)),
-            findall(x -> x == "generation_profile", collect(keys(solar))),
-        )
-            try
+        for k in intersect(keys(solar), names(solar_parameters))
+            if !ismissing(solar_parameters[1, k])
                 solar[k] = solar_parameters[1, k]
-            catch e
-                if k == "enabled"
+            else
+                if k in ["enabled"]
                     println(
                         "The " * k * " parameter is not defined. Will default to false.",
+                    )
+                elseif k in ["ground_reflectance"]
+                    println(
+                        "The " *
+                        k *
+                        " parameter is not defined. Will default to 'default'.",
+                    )
+                elseif k in ["tracker"]
+                    println(
+                        "The " * k * " parameter is not defined. Will default to 'fixed'.",
                     )
                 else
                     println(
@@ -534,20 +699,51 @@ function read_solar(filepath::String)::Solar
         )
     end
 
-    # Try loading the solar profile if solar is enabled
+    # Try loading the capacity factor profile if solar is enabled
     if solar["enabled"]
-        try
-            solar["generation_profile"] =
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "solar_profile.csv")))
-            println("...loading solar profile")
-        catch e
-            println(
-                "Solar profile not found in " *
-                filepath *
-                ". Solar parameters will default to not allowing solar to be " *
-                "considered.",
+        capacity_factor_file_path = DataFrames.DataFrame(
+            CSV.File(joinpath(filepath, "solar_parameters.csv"); transpose=true),
+        )[
+            1,
+            "capacity_factor_file_path",
+        ]
+        if !ismissing(capacity_factor_file_path)
+            try
+                solar["capacity_factor_profile"] = DataFrames.DataFrame(
+                    CSV.File(joinpath(filepath, capacity_factor_file_path)),
+                )
+            catch e
+                println(
+                    "Capacity factor profile not found in " *
+                    filepath *
+                    ". Please try again.",
+                )
+                solar["enabled"] = false
+            end
+        end
+
+        # Check that PV module specifications or a capacity factor profile are provided
+        if (solar["capacity_factor_profile"] == nothing) & any(
+            x -> x == nothing,
+            [
+                solar["module_nominal_power"],
+                solar["module_rated_voltage"],
+                solar["module_rated_current"],
+                solar["module_oc_voltage"],
+                solar["module_sc_current"],
+                solar["module_voltage_temp_coeff"],
+                solar["module_current_temp_coeff"],
+                solar["module_noct"],
+                solar["module_number_of_cells"],
+                solar["module_cell_material"],
+            ],
+        )
+            throw(
+                ErrorException(
+                    "Solar is enabled, but not enough information is provided to build " *
+                    "the capacity factor profile. Please try again.",
+                ),
             )
-            solar["enabled"] = false
         end
     end
 
@@ -613,21 +809,23 @@ function read_storage(filepath::String)::Storage
     # Check the provided efficiencies
     for k in ["charge_eff", "discharge_eff"]
         if storage[k] > 1.0
-            @error(
-                "The provided " *
-                k *
-                " parameter is greater than 1. Please only use values between 0 and " *
-                "1, inclusive."
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is greater than 1. Please only use values between 0 and " *
+                    "1, inclusive.",
+                ),
             )
-            throw(ErrorException("See above."))
         elseif storage[k] < 0.0
-            @error(
-                "The provided " *
-                k *
-                " parameter is less than 0. Please only use values between 0 and 1, " *
-                "inclusive."
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is less than 0. Please only use values between 0 and 1, " *
+                    "inclusive.",
+                ),
             )
-            throw(ErrorException("See above."))
         end
     end
 
