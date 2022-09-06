@@ -29,7 +29,10 @@ function print_derive_header()
     printstyled("  \\/  "; bold=true, color=:green)
     printstyled("|_____| \n"; bold=true, color=:magenta)
     println("")
-    println("  developed by Lane D. Smith | version 0.1.0")
+    println(
+        "  developed by Lane D. Smith | version " *
+        TOML.parse(read(abspath(joinpath(@__DIR__, "..", "..", "Project.toml")), String))["version"],
+    )
     println("")
     println("")
 end
