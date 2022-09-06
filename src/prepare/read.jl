@@ -29,9 +29,19 @@ function read_scenario(filepath::String)::Scenario
             if !ismissing(scenario_parameters[1, k])
                 scenario[k] = scenario_parameters[1, k]
             else
-                if k in ["latitude", "longitude", "timezone", "payback_period"]
+                if k in deleteat!(
+                    collect(intersect(keys(scenario), names(scenario_parameters))),
+                    findall(
+                        x -> x in ("problem_type", "year"),
+                        collect(intersect(keys(scenario), names(scenario_parameters))),
+                    ),
+                )
                     println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
+                        "The " *
+                        k *
+                        " parameter is not defined. Will default to " *
+                        string(scenario[k]) *
+                        ".",
                     )
                 else
                     throw(
@@ -114,7 +124,8 @@ function read_scenario(filepath::String)::Scenario
             catch e
                 throw(
                     ErrorException(
-                        "The timezone parameter is not provided in the weather data. Please try again",
+                        "The timezone parameter is not provided by the user and is not " *
+                        "found in the weather data. Please try again",
                     ),
                 )
             end
@@ -271,14 +282,16 @@ function read_tariff(filepath::String)::Tariff
 
     # Try assigning the similar tariff parameters from the file
     for k in intersect(keys(tariff), names(tariff_parameters))
-        if tariff_parameters[1, k] != "missing"
+        if !ismissing(tariff_parameters[1, k])
             tariff[k] = tariff_parameters[1, k]
         else
-            if k in ["utility_name", "tariff_name"]
-                println("The " * k * " parameter is not defined. Will default to nothing.")
-            else
-                println("The " * k * " parameter is not defined. Will default to false.")
-            end
+            println(
+                "The " *
+                k *
+                " parameter is not defined. Will default to " *
+                string(tariff[k]) *
+                ".",
+            )
         end
     end
 
@@ -423,18 +436,16 @@ function read_market(filepath::String)::Market
                 collect(keys(market)),
             ),
         )
-            try
+            if !ismissing(market_parameters[1, k])
                 market[k] = market_parameters[1, k]
-            catch e
-                if k in ["iso_name"]
-                    println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
-                    )
-                else
-                    println(
-                        "The " * k * " parameter is not defined. Will default to false.",
-                    )
-                end
+            else
+                println(
+                    "The " *
+                    k *
+                    " parameter is not defined. Will default to " *
+                    string(market[k]) *
+                    ".",
+                )
             end
         end
     catch e
@@ -502,18 +513,16 @@ function read_incentives(filepath::String)::Incentives
 
         # Try assigning the different incentives parameters from the file
         for k in keys(incentives)
-            try
+            if !ismissing(incentives_parameters[1, k])
                 incentives[k] = incentives_parameters[1, k]
-            catch e
-                if k in ["itc_enabled", "sgip_enabled"]
-                    println(
-                        "The " * k * " parameter is not defined. Will default to false.",
-                    )
-                else
-                    println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
-                    )
-                end
+            else
+                println(
+                    "The " *
+                    k *
+                    " parameter is not defined. Will default to " *
+                    string(incentives[k]) *
+                    ".",
+                )
             end
         end
     catch e
@@ -573,18 +582,16 @@ function read_demand(filepath::String)::Demand
             collect(keys(demand)),
             findall(x -> x in ("shift_capacity_profile"), collect(keys(demand))),
         )
-            try
+            if !ismissing(demand_parameters[1, k])
                 demand[k] = demand_parameters[1, k]
-            catch e
-                if k == "shift_enabled"
-                    println(
-                        "The " * k * " parameter is not defined. Will default to false.",
-                    )
-                else
-                    println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
-                    )
-                end
+            else
+                println(
+                    "The " *
+                    k *
+                    " parameter is not defined. Will default to " *
+                    string(demand[k]) *
+                    ".",
+                )
             end
         end
     catch e
@@ -670,25 +677,13 @@ function read_solar(filepath::String)::Solar
             if !ismissing(solar_parameters[1, k])
                 solar[k] = solar_parameters[1, k]
             else
-                if k in ["enabled"]
-                    println(
-                        "The " * k * " parameter is not defined. Will default to false.",
-                    )
-                elseif k in ["ground_reflectance"]
-                    println(
-                        "The " *
-                        k *
-                        " parameter is not defined. Will default to 'default'.",
-                    )
-                elseif k in ["tracker"]
-                    println(
-                        "The " * k * " parameter is not defined. Will default to 'fixed'.",
-                    )
-                else
-                    println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
-                    )
-                end
+                println(
+                    "The " *
+                    k *
+                    " parameter is not defined. Will default to " *
+                    string(solar[k]) *
+                    ".",
+                )
             end
         end
     catch e
@@ -768,6 +763,8 @@ function read_storage(filepath::String)::Storage
         "enabled" => false,
         "power_capacity" => nothing,
         "energy_capacity" => nothing,
+        "soc_min" => 0.0,
+        "soc_max" => 1.0,
         "charge_eff" => nothing,
         "discharge_eff" => nothing,
         "capital_cost" => nothing,
@@ -783,18 +780,16 @@ function read_storage(filepath::String)::Storage
 
         # Try assigning the different storage parameters from the file
         for k in keys(storage)
-            try
+            if !ismissing(storage_parameters[1, k])
                 storage[k] = storage_parameters[1, k]
-            catch e
-                if k == "enabled"
-                    println(
-                        "The " * k * " parameter is not defined. Will default to false.",
-                    )
-                else
-                    println(
-                        "The " * k * " parameter is not defined. Will default to nothing.",
-                    )
-                end
+            else
+                println(
+                    "The " *
+                    k *
+                    " parameter is not defined. Will default to " *
+                    string(storage[k]) *
+                    ".",
+                )
             end
         end
     catch e
@@ -807,7 +802,7 @@ function read_storage(filepath::String)::Storage
     end
 
     # Check the provided efficiencies
-    for k in ["charge_eff", "discharge_eff"]
+    for k in ["soc_min", "soc_max", "charge_eff", "discharge_eff"]
         if storage[k] > 1.0
             throw(
                 ErrorException(

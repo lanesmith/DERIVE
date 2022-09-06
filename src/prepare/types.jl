@@ -129,6 +129,8 @@ Base.@kwdef struct Storage
     enabled::Bool
     power_capacity::Union{Int64,Nothing}
     energy_capacity::Union{Int64,Nothing}
+    soc_min::Float64
+    soc_max::Float64
     charge_eff::Union{Float64,Nothing}
     discharge_eff::Union{Float64,Nothing}
     capital_cost::Union{Float64,Nothing}
