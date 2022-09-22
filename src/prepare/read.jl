@@ -82,7 +82,7 @@ function read_scenario(filepath::String)::Scenario
 
         # Try to populate the latitiude and longitude data
         for k in ["latitude", "longitude"]
-            if scenario[k] == nothing
+            if isnothing(scenario[k])
                 try
                     scenario[k] = abs(parse(Float64, weather_data[1, titlecase(k)]))
                 catch e
@@ -117,7 +117,7 @@ function read_scenario(filepath::String)::Scenario
         )
 
         # Try to populate the time zone data
-        if scenario["timezone"] == nothing
+        if isnothing(scenario["timezone"])
             try
                 scenario["timezone"] =
                     utc_offset_to_timezone[parse(Int64, weather_data[1, "Time Zone"])]
@@ -158,8 +158,8 @@ function read_scenario(filepath::String)::Scenario
             )
 
             # Check that the user-defined year is as long as the provided weather data
-            if length(scenario["weather_data"][:, "timestamp"]) !=
-               length(weather_data[:, "DNI"])
+            if length(scenario["weather_data"][!, "timestamp"]) !=
+               length(weather_data[!, "DNI"])
                 throw(
                     ErrorException(
                         "The user-defined year and weather data have a length mismatch. " *
@@ -172,11 +172,11 @@ function read_scenario(filepath::String)::Scenario
             insertcols!(
                 scenario["weather_data"],
                 "timestamp",
-                "DNI" => parse.(Float64, weather_data[:, "DNI"]),
-                "DHI" => parse.(Float64, weather_data[:, "DHI"]),
-                "GHI" => parse.(Float64, weather_data[:, "GHI"]),
-                "Temperature" => parse.(Float64, weather_data[:, "Temperature"]),
-                "Wind Speed" => parse.(Float64, weather_data[:, "Wind Speed"]),
+                "DNI" => parse.(Float64, weather_data[!, "DNI"]),
+                "DHI" => parse.(Float64, weather_data[!, "DHI"]),
+                "GHI" => parse.(Float64, weather_data[!, "GHI"]),
+                "Temperature" => parse.(Float64, weather_data[!, "Temperature"]),
+                "Wind Speed" => parse.(Float64, weather_data[!, "Wind Speed"]),
                 after=true,
             )
         catch e
@@ -298,9 +298,9 @@ function read_tariff(filepath::String)::Tariff
     # Try assigning the months from the file
     if tariff["seasonal_month_split"]
         for k in filter(x -> occursin("months", x), names(tariff_parameters))
-            if length(tariff_parameters[tariff_parameters[:, k] .!= "missing", :][:, k]) > 0
+            if length(tariff_parameters[tariff_parameters[!, k] .!= "missing", :][!, k]) > 0
                 tariff["months_by_season"][chop(k; tail=length("_months"))] =
-                    tariff_parameters[tariff_parameters[:, k] .!= "missing", :][:, k]
+                    tariff_parameters[tariff_parameters[:, k] .!= "missing", :][!, k]
             end
         end
     else
@@ -309,7 +309,7 @@ function read_tariff(filepath::String)::Tariff
 
     # Try assigning the customer charges from the file
     for k in filter(x -> occursin("customer_charge", x), names(tariff_parameters))
-        if !all(x -> x == "missing", tariff_parameters[:, k])
+        if !all(x -> x == "missing", tariff_parameters[!, k])
             tariff["customer_charge"][chop(k; tail=length("_customer_charge"))] =
                 tariff_parameters[1, k]
         end
@@ -321,24 +321,24 @@ function read_tariff(filepath::String)::Tariff
         filter(x -> occursin("values", x), names(tariff_parameters)),
         tail=length("_values"),
     )
-        if !all(x -> x == "missing", tariff_parameters[:, k * "_values"])
+        if !all(x -> x == "missing", tariff_parameters[!, k * "_values"])
             tariff[k * "_rates"] = Dict()
             for s in
-                filter(x -> x != "missing", unique(tariff_parameters[:, k * "_seasons"]))
+                filter(x -> x != "missing", unique(tariff_parameters[!, k * "_seasons"]))
                 if k == "monthly_maximum_demand"
                     tariff[k * "_rates"][s] = Dict(
                         "rate" => tariff_parameters[
-                            tariff_parameters[:, k * "_seasons"] .== s,
+                            tariff_parameters[!, k * "_seasons"] .== s,
                             :,
                         ][
-                            :,
+                            !,
                             k * "_values",
                         ][1],
                     )
                 else
                     if length(
-                        tariff_parameters[tariff_parameters[:, k * "_seasons"] .== s, :][
-                            :,
+                        tariff_parameters[tariff_parameters[!, k * "_seasons"] .== s, :][
+                            !,
                             k * "_values",
                         ],
                     ) > 0
@@ -346,7 +346,7 @@ function read_tariff(filepath::String)::Tariff
                             Dict(x => Dict("rate" => 0.0, "label" => "") for x = 0:23)
                         for r in eachrow(
                             tariff_parameters[
-                                tariff_parameters[:, k * "_seasons"] .== s,
+                                tariff_parameters[!, k * "_seasons"] .== s,
                                 :,
                             ],
                         )
@@ -367,28 +367,28 @@ function read_tariff(filepath::String)::Tariff
     end
 
     # Try assigning the tiered energy rate information from the file
-    if !all(x -> x == "missing", tariff_parameters[:, "energy_tiered_levels"])
+    if !all(x -> x == "missing", tariff_parameters[!, "energy_tiered_levels"])
         tariff["energy_tiered_rates"] = Dict()
         for s in filter(
             x -> x != "missing",
-            unique(tariff_parameters[:, "energy_tiered_seasons"]),
+            unique(tariff_parameters[!, "energy_tiered_seasons"]),
         )
             tariff["energy_tiered_rates"][s] = Dict()
             tariff["energy_tiered_rates"][s]["tiers"] =
-                tariff_parameters[tariff_parameters[:, "energy_tiered_seasons"] .== s, :][
-                    :,
+                tariff_parameters[tariff_parameters[!, "energy_tiered_seasons"] .== s, !][
+                    !,
                     "energy_tiered_levels",
                 ]
             tariff["energy_tiered_rates"][s]["price_adders"] =
-                tariff_parameters[tariff_parameters[:, "energy_tiered_seasons"] .== s, :][
-                    :,
+                tariff_parameters[tariff_parameters[!, "energy_tiered_seasons"] .== s, !][
+                    !,
                     "energy_tiered_adders",
                 ]
         end
     end
 
     # Check to make sure the energy charge is provided
-    if tariff["energy_tou_rates"] == nothing
+    if isnothing(tariff["energy_tou_rates"])
         throw(ErrorException("No energy rates were provided. Please try again."))
     end
 
@@ -552,7 +552,7 @@ and return them in a Demand struct.
 function read_demand(filepath::String)::Demand
     # Initialize demand struct
     demand = Dict{String,Any}(
-        "shift_enabled" => false,
+        "simple_shift_enabled" => false,
         "shift_capacity_profile" => nothing,
         "shift_duration" => nothing,
     )
@@ -604,7 +604,7 @@ function read_demand(filepath::String)::Demand
     end
 
     # Try loading the shiftable demand profile if shiftable demand is enabled
-    if demand["shift_enabled"]
+    if demand["simple_shift_enabled"]
         try
             demand["shift_capacity_profile"] = DataFrames.DataFrame(
                 CSV.File(joinpath(filepath, "shiftable_demand_profile.csv")),
@@ -617,7 +617,7 @@ function read_demand(filepath::String)::Demand
                 ". Shiftable demand parameters will default to not allowing " *
                 "shiftable demand to be considered.",
             )
-            demand["shift_enabled"] = false
+            demand["simple_shift_enabled"] = false
         end
     end
 
@@ -642,6 +642,7 @@ function read_solar(filepath::String)::Solar
         "enabled" => false,
         "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
+        "maximum_system_capacity" => nothing,
         "module_manufacturer" => nothing,
         "module_name" => nothing,
         "module_nominal_power" => nothing,
@@ -718,8 +719,8 @@ function read_solar(filepath::String)::Solar
         end
 
         # Check that PV module specifications or a capacity factor profile are provided
-        if (solar["capacity_factor_profile"] == nothing) & any(
-            x -> x == nothing,
+        if isnothing(solar["capacity_factor_profile"]) & any(
+            x -> isnothing(x),
             [
                 solar["module_nominal_power"],
                 solar["module_rated_voltage"],
@@ -767,6 +768,9 @@ function read_storage(filepath::String)::Storage
         "soc_max" => 1.0,
         "charge_eff" => nothing,
         "discharge_eff" => nothing,
+        "loss rate" => nothing,
+        "nonexport" => true,
+        "nonimport" => false,
         "capital_cost" => nothing,
         "lifespan" => nothing,
     )

@@ -7,7 +7,7 @@ obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by M
 """
 function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Create array of day numbers that correspond with each time stamp
-    n = dayofyear.(scenario.weather_data[:, "timestamp"])
+    n = dayofyear.(scenario.weather_data[!, "timestamp"])
 
     # Calculate the solar declination angle
     δ = 23.45 .* sind.((360 / 365) .* (n .- 81))
@@ -23,7 +23,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     )
 
     # Create array of minutes that correspond with each time stamp for each day
-    t = hour.(scenario.weather_data[:, "timestamp"]) .* 60
+    t = hour.(scenario.weather_data[!, "timestamp"]) .* 60
 
     # Convert clock time to solar time
     b = (360 / 364) .* (n .- 81)
@@ -56,7 +56,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Set the collector azimuth angle
-    if solar.collector_azimuth == nothing
+    if isnothing(solar.collector_azimuth)
         # Defaults to due south, which is optimal assuming no complicating constraints
         ϕ_c = 0
     else
@@ -64,7 +64,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Set the tilt angle of the panels
-    if solar.tilt_angle == nothing
+    if isnothing(solar.tilt_angle)
         # Use third-order polynomial fit from fixed-tilt PVWatts simulations that relates 
         # latitude (Northern Hemisphere) and PV tilt angle; source: Jacobson et al., 'World 
         # estimates of PV optimal tilt angles and ratios of sunlight incident upon tilted 
@@ -96,23 +96,23 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     replace!(x -> acosd(x) > 90 ? 0 : x, cosθ)
 
     # Calculate the beam insolation on the collector
-    beam_insolation = scenario.weather_data[:, "DNI"] .* cosθ
+    beam_insolation = scenario.weather_data[!, "DNI"] .* cosθ
 
     # Calculate the diffuse insolation on the collector
     if solar.tracker == "fixed"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
         diffuse_insoltation =
-            scenario.weather_data[:, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
+            scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
         diffuse_insoltation =
-            scenario.weather_data[:, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
+            scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     end
 
     # Define the ground reflectance coefficient
@@ -121,27 +121,27 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Calculate the reflected insolation on the collector
     if solar.tracker == "fixed"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 - cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 - cosd(Σ)) / 2)
     end
 
@@ -187,7 +187,7 @@ function calculate_solar_generation_profile(
 
     # Calculate cell temperature and convert from Celsius to Kelvin
     temperature =
-        scenario.weather_data[:, "Temperature"] .+
+        scenario.weather_data[!, "Temperature"] .+
         ((solar.module_noct - 20) / 800) .* irradiance .+ 273.15
 
     # Calculate the PV module's power profile

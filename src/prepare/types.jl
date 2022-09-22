@@ -81,7 +81,7 @@ characteristics about the consumer's base demand.
 """
 Base.@kwdef struct Demand
     demand_profile::DataFrames.DataFrame
-    shift_enabled::Bool
+    simple_shift_enabled::Bool
     shift_capacity_profile::Union{DataFrames.DataFrame,Nothing}
     shift_duration::Union{Int64,Nothing}
 end
@@ -96,6 +96,7 @@ Base.@kwdef struct Solar
     enabled::Bool
     capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
     power_capacity::Union{Float64,Nothing}
+    maximum_system_capacity::Union{Float64,Nothing}
     module_manufacturer::Union{String,Nothing}
     module_name::Union{String,Nothing}
     module_nominal_power::Union{Float64,Nothing}
@@ -133,6 +134,9 @@ Base.@kwdef struct Storage
     soc_max::Float64
     charge_eff::Union{Float64,Nothing}
     discharge_eff::Union{Float64,Nothing}
+    loss_rate::Union{Float64,Nothing}
+    nonexport::Bool
+    nonimport::Bool
     capital_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
 end
