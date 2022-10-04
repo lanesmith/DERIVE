@@ -1,5 +1,5 @@
 """
-    calculate_total_irradiance_profile(scenario, solar)
+    calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 
 Calculates the irradiance as observed by the simulated solar photovoltaic (PV) system. 
 Irradiance is based on weather data and the position of the PV array. Equations are 
@@ -46,7 +46,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 
     # Calculate the azimuth angle of the Sun
     ϕ_s = zeros(length(β))
-    for i = 1:length(ϕ_s)
+    for i = 1:lastindex(ϕ_s)
         ϕ_s[i] = asind((cosd(δ[i]) .* sind(hour_angle[i])) / cosd(β[i]))
 
         # Account for the ambiguity of arcsin: test if azimuth is greater or less than 90
@@ -150,7 +150,11 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 end
 
 """
-    calculate_solar_generation_profile(scenario, solar)
+    calculate_solar_generation_profile(
+        scenario::Scenario, 
+        solar::Solar, 
+        irradiance::Vector,
+    )
 
 Calculate the power generation profile for the specified PV system using the specified 
 weather data and a supported solution method. The power generation profile is intended to 
@@ -198,7 +202,13 @@ function calculate_solar_generation_profile(
 end
 
 """
-    desoto_iv_curve_method(solar, irradiance, temperature, constants, num_iv_points)
+    desoto_iv_curve_method(
+        solar::Solar, 
+        irradiance::Vector, 
+        temperature::Vector, 
+        constants::Dict, 
+        num_iv_points::Int64=1000,
+    )
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
 the method outlined in De Soto et al., 'Improvement and validation of a model for 
@@ -333,7 +343,7 @@ function desoto_iv_curve_method(
 end
 
 """
-    create_solar_capacity_factor_profile(scenario, solar, power_profile)
+    create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
 
 Determine the capacity factor profile of the specified PV system with the given weather 
 data. The capacity factor profile is determined by taking the power generation profile for 
@@ -374,7 +384,7 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
 end
 
 """
-    lambertw(z, tol)
+    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
 
 Solve the principal branch of the Lambert W function using Halley's method. Assume that 
 the input, z, is real and sufficiently greater than the branch point of -1/e. Equations 

@@ -1,5 +1,5 @@
 """
-    create_energy_rate_profile(scenario, tariff)
+    create_energy_rate_profile(scenario::Scenario, tariff::Tariff)::DataFrames.DataFrame
 
 Create the profiles that describe how consumers are exposed to energy charges.
 """
@@ -82,7 +82,7 @@ function create_energy_rate_profile(
 end
 
 """
-    create_demand_rate_profile(scenario, tariff)
+    create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
 
 Create the mask profiles and corresponding rate references that describe how consumers 
 are exposed to demand charges.
@@ -108,7 +108,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     )
 
     # Create masks and rates for monthly maximum demand charges
-    if tariff.monthly_maximum_demand_rates != nothing
+    if !isnothing(tariff.monthly_maximum_demand_rates)
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             # Initialize the mask and set the rate
             mask[!, "monthly_maximum_" * string(m)] = zeros(length(mask[!, "timestamp"]))
@@ -126,7 +126,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     end
 
     # Create masks and rates for monthly maximum time-of-use (TOU) demand charges
-    if tariff.monthly_demand_tou_rates != nothing
+    if !isnothing(tariff.monthly_demand_tou_rates)
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             for h in sort!(
                 collect(
@@ -222,7 +222,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     end
 
     # Create masks and rates for daily maximum time-of-use (TOU) demand charges
-    if tariff.daily_demand_tou_rates != nothing
+    if !isnothing(tariff.daily_demand_tou_rates)
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             for d = 1:Dates.daysinmonth(Date(scenario.year, m))
                 # Skip mask, rate for relevant timestamps if holidays, weekends are considered
@@ -301,14 +301,17 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
 end
 
 """
-    create_nem_rate_profile(tariff, energy_price_profile)
+    create_nem_rate_profile(
+        tariff::Tariff, 
+        energy_price_profile::DataFrames.DataFrame,
+    )::DataFrames.DataFrame
 
 Create the profile that describes the rate at which consumers can sell excess solar 
 generation via a net energy metering (NEM) program.
 """
 function create_nem_rate_profile(
     tariff::Tariff,
-    energy_price_profile::DataFrame,
+    energy_price_profile::DataFrames.DataFrame,
 )::DataFrames.DataFrame
     # Create profile of NEM sell prices using the profile of energy prices
     profile = deepcopy(energy_price_profile)
@@ -319,7 +322,7 @@ function create_nem_rate_profile(
 end
 
 """
-    create_rate_profiles(scenario, tariff)
+    create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
 
 Create the profiles that describe how consumers are exposed to demand charges, energy 
 charges, and net metering sell rates.
@@ -333,8 +336,8 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
     tariff_["energy_prices"] = create_energy_rate_profile(scenario, tariff)
 
     # Create the demand charge profile
-    if (tariff.monthly_demand_tou_rates != nothing) |
-       (tariff.daily_demand_tou_rates != nothing)
+    if !isnothing(tariff.monthly_demand_tou_rates) |
+       !isnothing(tariff.daily_demand_tou_rates)
         tariff_["demand_prices"], tariff_["demand_mask"] =
             create_demand_rate_profile(scenario, tariff)
     end
@@ -354,7 +357,7 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
 end
 
 """
-    identify_weekends(timestamp, month_id)
+    identify_weekends(timestamp::Union{Vector{Dates.Date},Dates.Date}, month_id::Int64)
 
 Indicates whether a provided timestamp is a weekend day. Can consider a DataFrame of 
 timestamps (evaluated pointwise) or a single timestamp.
@@ -368,7 +371,7 @@ function identify_weekends(
 end
 
 """
-    identify_holidays(timestamp, month_id)
+    identify_holidays(timestamp::Union{Vector{Dates.Date},Dates.Date}, month_id::Int64)
 
 Indicates whether a provided timestamp is one of the following holidays: New Years Day, 
 Presidents' Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving Day, 
