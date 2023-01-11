@@ -11,8 +11,10 @@ function read_tariff(filepath::String)::Tariff
         "weekday_weekend_split" => false,
         "holiday_split" => false,
         "seasonal_month_split" => true,
-        "months_by_season" =>
-            Dict{String,Vector{Int64}}("summer" => [6, 7, 8, 9], "winter" => [1, 2, 3, 4, 5, 10, 11, 12]),
+        "months_by_season" => Dict{String,Vector{Int64}}(
+            "summer" => [6, 7, 8, 9],
+            "winter" => [1, 2, 3, 4, 5, 10, 11, 12],
+        ),
         "energy_tou_rates" => nothing,
         "energy_tiered_rates" => nothing,
         "monthly_maximum_demand_rates" => nothing,
@@ -98,8 +100,10 @@ function read_tariff(filepath::String)::Tariff
                             k * "_values",
                         ],
                     ) > 0
-                        tariff[k * "_rates"][s] =
-                            Dict{Int64,Dict}(x => Dict{String,Any}("rate" => 0.0, "label" => "") for x = 0:23)
+                        tariff[k * "_rates"][s] = Dict{Int64,Dict}(
+                            x => Dict{String,Any}("rate" => 0.0, "label" => "") for
+                            x = 0:23
+                        )
                         for r in eachrow(
                             tariff_parameters[
                                 tariff_parameters[!, k * "_seasons"] .== s,
