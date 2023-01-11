@@ -107,7 +107,7 @@ function read_scenario(filepath::String)::Scenario
         end
 
         # Create mapping between UTC offset and time zone name
-        utc_offset_to_timezone = Dict(
+        utc_offset_to_timezone = Dict{Int64,String}(
             -5 => "Eastern",
             -6 => "Central",
             -7 => "Mountain",

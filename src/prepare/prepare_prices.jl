@@ -35,7 +35,7 @@ function create_energy_rate_profile(
     end
 
     # Create inverse mapping of seasons to months
-    seasons_by_month = Dict(
+    seasons_by_month = Dict{Int64,String}(
         v => k for k in keys(tariff.months_by_season) for
         v in values(tariff.months_by_season[k])
     )
@@ -102,7 +102,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     rates = Dict{String,Float64}()
 
     # Create inverse mapping of seasons to months
-    seasons_by_month = Dict(
+    seasons_by_month = Dict{Int64,String}(
         v => k for k in keys(tariff.months_by_season) for
         v in values(tariff.months_by_season[k])
     )
@@ -329,7 +329,7 @@ charges, and net metering sell rates.
 """
 function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
     # Initialize the updated Tariff struct object
-    tariff_ = Dict(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
+    tariff_ = Dict{String,Any}(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
     println("...preparing price profiles")
 
     # Create the energy charge profile

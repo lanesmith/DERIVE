@@ -12,7 +12,7 @@ function read_tariff(filepath::String)::Tariff
         "holiday_split" => false,
         "seasonal_month_split" => true,
         "months_by_season" =>
-            Dict("summer" => [6, 7, 8, 9], "winter" => [1, 2, 3, 4, 5, 10, 11, 12]),
+            Dict{String,Vector{Int64}}("summer" => [6, 7, 8, 9], "winter" => [1, 2, 3, 4, 5, 10, 11, 12]),
         "energy_tou_rates" => nothing,
         "energy_tiered_rates" => nothing,
         "monthly_maximum_demand_rates" => nothing,
@@ -20,7 +20,7 @@ function read_tariff(filepath::String)::Tariff
         "daily_demand_tou_rates" => nothing,
         "nem_enabled" => false,
         "nem_non_bypassable_charge" => nothing,
-        "customer_charge" => Dict("daily" => 0.0, "monthly" => 0.0),
+        "customer_charge" => Dict{String,Float64}("daily" => 0.0, "monthly" => 0.0),
         "energy_prices" => nothing,
         "demand_prices" => nothing,
         "demand_mask" => nothing,
@@ -60,7 +60,7 @@ function read_tariff(filepath::String)::Tariff
             end
         end
     else
-        tariff["months_by_season"] = Dict("base" => [x for x = 1:12])
+        tariff["months_by_season"] = Dict{String,Vector{Int64}}("base" => [x for x = 1:12])
     end
 
     # Try assigning the customer charges from the file
@@ -78,11 +78,11 @@ function read_tariff(filepath::String)::Tariff
         tail=length("_values"),
     )
         if !all(x -> x == "missing", tariff_parameters[!, k * "_values"])
-            tariff[k * "_rates"] = Dict()
+            tariff[k * "_rates"] = Dict{String,Dict}()
             for s in
                 filter(x -> x != "missing", unique(tariff_parameters[!, k * "_seasons"]))
                 if k == "monthly_maximum_demand"
-                    tariff[k * "_rates"][s] = Dict(
+                    tariff[k * "_rates"][s] = Dict{String,Float64}(
                         "rate" => tariff_parameters[
                             tariff_parameters[!, k * "_seasons"] .== s,
                             :,
@@ -99,7 +99,7 @@ function read_tariff(filepath::String)::Tariff
                         ],
                     ) > 0
                         tariff[k * "_rates"][s] =
-                            Dict(x => Dict("rate" => 0.0, "label" => "") for x = 0:23)
+                            Dict{Int64,Dict}(x => Dict{String,Any}("rate" => 0.0, "label" => "") for x = 0:23)
                         for r in eachrow(
                             tariff_parameters[
                                 tariff_parameters[!, k * "_seasons"] .== s,
@@ -124,12 +124,12 @@ function read_tariff(filepath::String)::Tariff
 
     # Try assigning the tiered energy rate information from the file
     if !all(x -> x == "missing", tariff_parameters[!, "energy_tiered_levels"])
-        tariff["energy_tiered_rates"] = Dict()
+        tariff["energy_tiered_rates"] = Dict{String,Dict}()
         for s in filter(
             x -> x != "missing",
             unique(tariff_parameters[!, "energy_tiered_seasons"]),
         )
-            tariff["energy_tiered_rates"][s] = Dict()
+            tariff["energy_tiered_rates"][s] = Dict{String,Any}()
             tariff["energy_tiered_rates"][s]["tiers"] =
                 tariff_parameters[tariff_parameters[!, "energy_tiered_seasons"] .== s, !][
                     !,

@@ -13,7 +13,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     δ = 23.45 .* sind.((360 / 365) .* (n .- 81))
 
     # Define local time meridians according to U.S. time zone
-    ltm = Dict(
+    ltm = Dict{String,Int64}(
         "Eastern" => 75,
         "Central" => 90,
         "Mountain" => 105,
@@ -116,7 +116,11 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Define the ground reflectance coefficient
-    ρ = Dict("default" => 0.2, "fresh snow" => 0.8, "bituminous-and-gravel roof" => 0.1)
+    ρ = Dict{String,Float64}(
+        "default" => 0.2,
+        "fresh snow" => 0.8,
+        "bituminous-and-gravel roof" => 0.1,
+    )
 
     # Calculate the reflected insolation on the collector
     if solar.tracker == "fixed"
@@ -174,13 +178,22 @@ function calculate_solar_generation_profile(
 
     # Define band gaps and fitting parameters for different semiconductor materials. Data 
     # from 'Principles of Semiconductor Devices' by Van Zeghbroeck
-    semiconductor_parameters = Dict(
-        "Silicon" =>
-            Dict("band_gap_0" => 1.166, "α_param" => 4.73e-4, "β_param" => 636),
-        "Germanium" =>
-            Dict("band_gap_0" => 0.7437, "α_param" => 4.77e-4, "β_param" => 235),
-        "Gallium Aresenide" =>
-            Dict("band_gap_0" => 1.519, "α_param" => 5.41e-4, "β_param" => 204),
+    semiconductor_parameters = Dict{String,Dict}(
+        "Silicon" => Dict{String,Float64}(
+            "band_gap_0" => 1.166,
+            "α_param" => 4.73e-4,
+            "β_param" => 636,
+        ),
+        "Germanium" => Dict{String,Float64}(
+            "band_gap_0" => 0.7437,
+            "α_param" => 4.77e-4,
+            "β_param" => 235,
+        ),
+        "Gallium Aresenide" => Dict{String,Float64}(
+            "band_gap_0" => 1.519,
+            "α_param" => 5.41e-4,
+            "β_param" => 204,
+        ),
     )
     constants["band_gap_data"] =
         semiconductor_parameters[titlecase(solar.module_cell_material)]
@@ -222,7 +235,7 @@ function desoto_iv_curve_method(
     solar::Solar,
     irradiance::Vector,
     temperature::Vector,
-    constants::Dict,
+    constants::Dict{String,Any},
     num_iv_points::Int64=1000,
 )
     # Calculate the photo-induced current
@@ -351,7 +364,7 @@ a single PV module and normalizing it by the rated capacity of the PV module.
 """
 function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
     # Initialize the updated Solar struct object
-    solar_ = Dict(string(i) => getfield(solar, i) for i in fieldnames(Solar))
+    solar_ = Dict{String,Any}(string(i) => getfield(solar, i) for i in fieldnames(Solar))
     println("...preparing solar profiles")
 
     # Determine the total irradiance profile
