@@ -9,6 +9,7 @@ function read_scenario(filepath::String)::Scenario
         "problem_type" => "",
         "interval_length" => "hour",
         "optimization_horizon" => "month",
+        "optimization_solver" => "Gurobi",
         "weather_data" => nothing,
         "latitude" => nothing,
         "longitude" => nothing,
@@ -229,6 +230,19 @@ function read_scenario(filepath::String)::Scenario
             ErrorException(
                 "The optimization horizon must be either a day, month, or year. Please " *
                 "try again.",
+            ),
+        )
+    end
+
+    # Check the optimization solver
+    if lowercase(scenario["optimization_solver"]) in ["glpk", "gurobi", "highs"]
+        scenario["optimization_solver"] = lowercase(scenario["optimization_solver"])
+    else
+        throw(
+            ErrorException(
+                "DERIVE does not support " *
+                scenario["optimization_solver"] *
+                " as a solver. Please try again.",
             ),
         )
     end
