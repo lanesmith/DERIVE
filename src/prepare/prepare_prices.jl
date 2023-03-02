@@ -313,9 +313,18 @@ function create_nem_rate_profile(
     tariff::Tariff,
     energy_price_profile::DataFrames.DataFrame,
 )::DataFrames.DataFrame
-    # Create profile of NEM sell prices using the profile of energy prices
-    profile = deepcopy(energy_price_profile)
-    profile[!, "rates"] .-= tariff.nem_non_bypassable_charge
+    # Create profile of NEM sell prices depending on the NEM version
+    if tariff.nem_version == 1
+        # Under NEM 1.0, the sell rate is the same as the energy rate
+        profile = deepcopy(energy_price_profile)
+    elseif tariff.nem_version == 2
+        # Under NEM 2.0, the sell rate is the energy rate minus the non-bypassable charge
+        profile = deepcopy(energy_price_profile)
+        profile[!, "rates"] .-= tariff.nem2_non_bypassable_charge
+    elseif tariff.nem_version == 3
+        # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators
+        profile = tariff.nem3_profile
+    end
 
     # Return the profile for NEM sell rates
     return profile
