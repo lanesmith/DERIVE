@@ -7,6 +7,7 @@ Base.@kwdef struct Scenario
     problem_type::String
     interval_length::String
     optimization_horizon::String
+    optimization_solver::String
     weather_data::Union{DataFrames.DataFrame,Nothing}
     latitude::Union{Float64,Nothing}
     longitude::Union{Float64,Nothing}
@@ -34,7 +35,9 @@ Base.@kwdef struct Tariff
     monthly_demand_tou_rates::Union{Dict,Nothing}
     daily_demand_tou_rates::Union{Dict,Nothing}
     nem_enabled::Bool
-    nem_non_bypassable_charge::Union{Float64,Nothing}
+    nem_version::Int64
+    nem2_non_bypassable_charge::Union{Float64,Nothing}
+    nem3_profile::Union{DataFrames.DataFrame,Nothing}
     customer_charge::Dict
     energy_prices::Union{DataFrames.DataFrame,Nothing}
     demand_prices::Union{Dict,Nothing}
@@ -82,7 +85,9 @@ characteristics about the consumer's base demand.
 Base.@kwdef struct Demand
     demand_profile::DataFrames.DataFrame
     simple_shift_enabled::Bool
-    shift_capacity_profile::Union{DataFrames.DataFrame,Nothing}
+    shift_up_capacity_profile::Union{DataFrames.DataFrame,Nothing}
+    shift_down_capacity_profile::Union{DataFrames.DataFrame,Nothing}
+    shift_percent::Union{Float64,Nothing}
     shift_duration::Union{Int64,Nothing}
 end
 
@@ -130,8 +135,11 @@ Base.@kwdef struct Storage
     enabled::Bool
     power_capacity::Union{Int64,Nothing}
     energy_capacity::Union{Int64,Nothing}
+    maximum_power_capacity::Union{Int64,Nothing}
+    maximum_energy_capacity::Union{Int64,Nothing}
     soc_min::Float64
     soc_max::Float64
+    soc_initial::Float64
     charge_eff::Union{Float64,Nothing}
     discharge_eff::Union{Float64,Nothing}
     loss_rate::Union{Float64,Nothing}
@@ -142,15 +150,21 @@ Base.@kwdef struct Storage
 end
 
 """
-    Grid
+    Sets
 
-A struct to hold information about the specifications of the electric power grid system 
-to which consumers are connected.
+A struct to hold information on the useful sets and reduced profiles being used in the 
+simulation at a given time.
 """
-Base.@kwdef struct Grid
-    nodes::Union{Array{Int64,1},Nothing}
-    branches::Union{Array{Int64,1},Nothing}
-    branches_from::Union{Array{Int64,1},Nothing}
-    branches_to::Union{Array{Int64,1},Nothing}
-    branch_capacity::Union{Array{Float64,1},Nothing}
+Base.@kwdef struct Sets
+    demand::DataFrames.DataFrame
+    solar_capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
+    shift_up_capacity::Union{DataFrames.DataFrame,Nothing}
+    shift_down_capacity::Union{DataFrames.DataFrame,Nothing}
+    energy_prices::Union{DataFrames.DataFrame,Nothing}
+    demand_prices::Union{Dict,Nothing}
+    demand_mask::Union{DataFrames.DataFrame,Nothing}
+    nem_prices::Union{DataFrames.DataFrame,Nothing}
+    initial_soc::Union{Float64,Nothing}
+    num_time_steps::Int64
+    num_demand_charge_periods::Int64
 end
