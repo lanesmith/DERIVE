@@ -17,7 +17,7 @@ function simulate_by_day(
     scenario::Scenario,
     tariff::Tariff,
     market::Market,
-    incentives::Incetives,
+    incentives::Incentives,
     demand::Demand,
     solar::Solar,
     storage::Storage,
