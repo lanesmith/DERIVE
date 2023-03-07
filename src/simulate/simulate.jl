@@ -200,14 +200,12 @@ function create_sets(
 end
 
 """
-    solve_problem(input_folder::String, output_folder::Union{String,Nothing}=nothing)
+    load_and_preprocess_data(input_folder::String)
 
-Solve the specified optimization problem using one of the specified solution methods.
+Loads and preprocesses the data needed to run a simulation. Returns data in the appropriate 
+objects.
 """
-function solve_problem(input_folder::String, output_folder::Union{String,Nothing}=nothing)
-    # Print DERIVE header
-    print_derive_header()
-
+function load_and_preprocess_data(input_folder::String)
     # Load all the simulation data
     scenario = read_scenario(input_folder)
     tariff = read_tariff(input_folder)
@@ -225,6 +223,34 @@ function solve_problem(input_folder::String, output_folder::Union{String,Nothing
     end
     println("All data preprocessing complete!")
 
+    # Return the created objects
+    return scenario, tariff, market, incentives, demand, solar, storage
+end
+
+"""
+    solve_problem(
+        scenario::Scenario,
+        tariff::Tariff,
+        market::Market,
+        incentives::Incentives,
+        demand::Demand,
+        solar::Solar,
+        storage::Storage,
+        output_folder::Union{String,Nothing}=nothing,
+    )
+
+Solve the specified optimization problem using one of the provided solution methods.
+"""
+function solve_problem(
+    scenario::Scenario,
+    tariff::Tariff,
+    market::Market,
+    incentives::Incentives,
+    demand::Demand,
+    solar::Solar,
+    storage::Storage,
+    output_folder::Union{String,Nothing}=nothing,
+)
     # Perform the simulation, depending on the optimization horizon
     if scenario.optimization_horizon == "day"
         simulate_by_day(
