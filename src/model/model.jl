@@ -130,6 +130,11 @@ function build_optimization_model(
         define_nonexport_constraint!(m, tariff, solar, sets)
     end
 
+    # Define the non-import constraint for BES, if enabled and applicable
+    if storage.nonimport & storage.enabled
+        define_bes_nonimport_constraint!(m, solar, sets)
+    end
+
     # Define the objective function of the optimization model, depending on problem type
     if scenario.problem_type == "pcm"
         define_production_cost_objective_function!(m, tariff, sets)
