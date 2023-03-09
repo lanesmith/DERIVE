@@ -16,9 +16,9 @@ function read_storage(filepath::String)::Storage
         "soc_min" => 0.0,
         "soc_max" => 1.0,
         "soc_initial" => 0.5,
-        "charge_eff" => nothing,
-        "discharge_eff" => nothing,
-        "loss rate" => nothing,
+        "charge_eff" => 1.0,
+        "discharge_eff" => 1.0,
+        "loss_rate" => 0.0,
         "nonexport" => true,
         "nonimport" => false,
         "capital_cost" => nothing,
@@ -26,11 +26,11 @@ function read_storage(filepath::String)::Storage
     )
 
     # Try loading the storage parameters
+    println("...loading storage parameters")
     try
         storage_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "storage_parameters.csv"); transpose=true),
         )
-        println("...loading storage parameters")
 
         # Try assigning the different storage parameters from the file
         for k in keys(storage)
@@ -59,7 +59,7 @@ function read_storage(filepath::String)::Storage
     if !isnothing(storage["duration"])
         if !isnothing(storage["energy_capacity"])
             @warn(
-                "Both the energy_capacity and duration parameters have been provided. " * 
+                "Both the energy_capacity and duration parameters have been provided. " *
                 "Will default to using the energy_capacity parameter."
             )
         else
@@ -69,7 +69,8 @@ function read_storage(filepath::String)::Storage
     end
 
     # Check the provided state-of-charge and efficiency parameters
-    for k in ["soc_min", "soc_max", "soc_initial", "charge_eff", "discharge_eff"]
+    for k in
+        ["soc_min", "soc_max", "soc_initial", "charge_eff", "discharge_eff", "loss_rate"]
         if storage[k] > 1.0
             throw(
                 ErrorException(

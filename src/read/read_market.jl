@@ -18,11 +18,11 @@ function read_market(filepath::String)::Market
     )
 
     # Try loading the market parameters
+    println("...loading market parameters")
     try
         market_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "market_parameters.csv"); transpose=true),
         )
-        println("...loading market parameters")
 
         # Try assigning the different incentives parameters from the file
         for k in deleteat!(
@@ -49,7 +49,7 @@ function read_market(filepath::String)::Market
         println(
             "Market parameters not found in " *
             filepath *
-            ". Market parameters will default to not allowing incentives to be " *
+            ". Market parameters will default to not allowing markets to be " *
             "considered.",
         )
     end

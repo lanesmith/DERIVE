@@ -133,16 +133,17 @@ A struct to hold information about the specifications of the battery energy stor
 """
 Base.@kwdef struct Storage
     enabled::Bool
-    power_capacity::Union{Int64,Nothing}
-    energy_capacity::Union{Int64,Nothing}
-    maximum_power_capacity::Union{Int64,Nothing}
-    maximum_energy_capacity::Union{Int64,Nothing}
+    power_capacity::Union{Float64,Nothing}
+    energy_capacity::Union{Float64,Nothing}
+    duration::Union{Float64,Nothing}
+    maximum_power_capacity::Union{Float64,Nothing}
+    maximum_energy_capacity::Union{Float64,Nothing}
     soc_min::Float64
     soc_max::Float64
     soc_initial::Float64
-    charge_eff::Union{Float64,Nothing}
-    discharge_eff::Union{Float64,Nothing}
-    loss_rate::Union{Float64,Nothing}
+    charge_eff::Float64
+    discharge_eff::Float64
+    loss_rate::Float64
     nonexport::Bool
     nonimport::Bool
     capital_cost::Union{Float64,Nothing}

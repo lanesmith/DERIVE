@@ -32,10 +32,10 @@ function read_tariff(filepath::String)::Tariff
     )
 
     # Try loading the tariff parameters
+    println("...loading tariff parameters")
     tariff_parameters = DataFrames.DataFrame(
         CSV.File(joinpath(filepath, "tariff_parameters.csv"); transpose=true),
     )
-    println("...loading tariff parameters")
 
     # Try assigning the similar tariff parameters from the file
     for k in intersect(keys(tariff), names(tariff_parameters))

@@ -35,11 +35,11 @@ function read_solar(filepath::String)::Solar
     )
 
     # Try loading the solar parameters
+    println("...loading solar parameters")
     try
         solar_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "solar_parameters.csv"); transpose=true),
         )
-        println("...loading solar parameters")
 
         # Try assigning the different solar parameters from the file
         for k in intersect(keys(solar), names(solar_parameters))

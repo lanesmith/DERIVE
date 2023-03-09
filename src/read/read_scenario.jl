@@ -19,11 +19,11 @@ function read_scenario(filepath::String)::Scenario
     )
 
     # Try loading the scenario parameters
+    println("...loading scenario parameters")
     try
         scenario_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "scenario_parameters.csv"); transpose=true),
         )
-        println("...loading scenario parameters")
 
         # Try assigning the different scenario parameters from the file
         for k in intersect(keys(scenario), names(scenario_parameters))

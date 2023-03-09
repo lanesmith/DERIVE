@@ -16,11 +16,11 @@ function read_demand(filepath::String)::Demand
     )
 
     # Try loading the demand parameters
+    println("...loading demand parameters")
     try
         demand_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "demand_parameters.csv"); transpose=true),
         )
-        println("...loading demand parameters")
 
         # Try assigning the different demand parameters from the file
         for k in deleteat!(
@@ -58,7 +58,7 @@ function read_demand(filepath::String)::Demand
                     ),
                 ),
             )
-            println("...loading demand profile")
+            println("......loading demand profile")
         catch e
             throw(
                 ErrorException(
@@ -82,7 +82,7 @@ function read_demand(filepath::String)::Demand
                 demand["shift_" * i * "_capacity_profile"] = DataFrames.DataFrame(
                     CSV.File(joinpath(filepath, "shiftable_demand_" * i * "_profile.csv")),
                 )
-                println("...loading shiftable demand " * i * " profile")
+                println("......loading shiftable demand " * i * " profile")
             catch e
                 println(
                     "Shiftable demand " *

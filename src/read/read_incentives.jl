@@ -14,11 +14,11 @@ function read_incentives(filepath::String)::Incentives
     )
 
     # Try loading the incentives parameters
+    println("...loading incentives parameters")
     try
         incentives_parameters = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "incentives_parameters.csv"); transpose=true),
         )
-        println("...loading incentives parameters")
 
         # Try assigning the different incentives parameters from the file
         for k in keys(incentives)
