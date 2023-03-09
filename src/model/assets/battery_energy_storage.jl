@@ -106,7 +106,7 @@ function define_bes_soc_energy_conservation!(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
-                storage.soc_initial * m[:bes_energy_capacity] +
+                (1 - storage.loss_rate) * storage.soc_initial * m[:bes_energy_capacity] +
                 storage.charge_eff * m[:p_cha][1] -
                 (1 / storage.discharge_eff) * m[:p_dis][1]
             )
@@ -115,8 +115,10 @@ function define_bes_soc_energy_conservation!(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
-                storage.soc_initial * storage.duration * m[:bes_power_capacity] +
-                storage.charge_eff * m[:p_cha][1] -
+                (1 - storage.loss_rate) *
+                storage.soc_initial *
+                storage.duration *
+                m[:bes_power_capacity] + storage.charge_eff * m[:p_cha][1] -
                 (1 / storage.discharge_eff) * m[:p_dis][1]
             )
         end
@@ -125,8 +127,8 @@ function define_bes_soc_energy_conservation!(
             m,
             bes_soc_energy_conservation_initial,
             m[:soc][1] ==
-            sets.initial_soc + storage.charge_eff * m[:p_cha][1] -
-            (1 / storage.discharge_eff) * m[:p_dis][1]
+            (1 - storage.loss_rate) * sets.bes_initial_soc +
+            storage.charge_eff * m[:p_cha][1] - (1 / storage.discharge_eff) * m[:p_dis][1]
         )
     end
 
@@ -135,7 +137,7 @@ function define_bes_soc_energy_conservation!(
         m,
         bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
         m[:soc][t + 1] ==
-        m[:soc][t] + storage.charge_eff * m[:p_cha][t + 1] -
+        (1 - storage.loss_rate) * m[:soc][t] + storage.charge_eff * m[:p_cha][t + 1] -
         (1 / storage.discharge_eff) * m[:p_dis][t + 1]
     )
 end
@@ -181,7 +183,7 @@ function define_bes_final_soc_constraint!(
         @constraint(
             m,
             bes_final_soc_constraint,
-            m[:soc][sets.num_time_steps] >= sets.initial_soc
+            m[:soc][sets.num_time_steps] >= sets.bes_initial_soc
         )
     end
 end
