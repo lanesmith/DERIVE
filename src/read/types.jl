@@ -157,15 +157,15 @@ A struct to hold information on the useful sets and reduced profiles being used 
 simulation at a given time.
 """
 Base.@kwdef struct Sets
-    demand::DataFrames.DataFrame
-    solar_capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
-    shift_up_capacity::Union{DataFrames.DataFrame,Nothing}
-    shift_down_capacity::Union{DataFrames.DataFrame,Nothing}
-    energy_prices::Union{DataFrames.DataFrame,Nothing}
+    demand::Vector{Float64}
+    solar_capacity_factor_profile::Union{Vector{Float64},Nothing}
+    shift_up_capacity::Union{Vector{Float64},Nothing}
+    shift_down_capacity::Union{Vector{Float64},Nothing}
+    energy_prices::Union{Vector{Float64},Nothing}
     demand_prices::Union{Dict,Nothing}
-    demand_mask::Union{DataFrames.DataFrame,Nothing}
-    nem_prices::Union{DataFrames.DataFrame,Nothing}
-    initial_soc::Union{Float64,Nothing}
+    demand_mask::Union{Dict,Nothing}
+    nem_prices::Union{Vector{Float64},Nothing}
+    bes_initial_soc::Union{Float64,Nothing}
     num_time_steps::Int64
     num_demand_charge_periods::Int64
 end
