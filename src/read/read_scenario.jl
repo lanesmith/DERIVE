@@ -198,9 +198,9 @@ function read_scenario(filepath::String)::Scenario
 
     # Check the problem type
     if lowercase(scenario["problem_type"]) in ["production_cost", "pcm"]
-        scenario["problem_type"] = "pcm"
+        scenario["problem_type"] = "PCM"
     elseif lowercase(scenario["problem_type"]) in ["capacity_expansion", "cem"]
-        scenario["problem_type"] = "cem"
+        scenario["problem_type"] = "CEM"
     else
         throw(
             ErrorException(
@@ -236,7 +236,7 @@ function read_scenario(filepath::String)::Scenario
 
     # Check the optimization solver
     if lowercase(scenario["optimization_solver"]) in ["glpk", "gurobi", "highs"]
-        scenario["optimization_solver"] = lowercase(scenario["optimization_solver"])
+        scenario["optimization_solver"] = uppercase(scenario["optimization_solver"])
     else
         throw(
             ErrorException(

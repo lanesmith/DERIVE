@@ -92,11 +92,11 @@ function build_optimization_model(
     sets::Sets,
 )::JuMP.Model
     # Determine the solver
-    if scenario.optimization_solver == "glpk"
+    if scenario.optimization_solver == "GLPK"
         s = GLPK.Solver
-    elseif scenario.optimization_solver == "gurobi"
+    elseif scenario.optimization_solver == "GUROBI"
         s = Gurobi.Optimizer
-    elseif scenario.optimization_solver == "highs"
+    elseif scenario.optimization_solver == "HIGHS"
         s = HiGHS.Optimizer
     end
 
@@ -136,7 +136,7 @@ function build_optimization_model(
     end
 
     # Define the objective function of the optimization model, depending on problem type
-    if scenario.problem_type == "pcm"
+    if scenario.problem_type == "PCM"
         define_production_cost_objective_function!(m, tariff, sets)
     else
         define_capacity_expansion_objective_function!(m, tariff, incentives, sets)

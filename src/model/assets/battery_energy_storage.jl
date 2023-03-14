@@ -60,7 +60,7 @@ function define_bes_variables!(
     @variable(m, soc[t in 1:(sets.num_time_steps)])
 
     # Set the BES power and energy capacity variables, if performing capacity expansion
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         # Set the BES power capacity to be unbounded or bounded, as specified
         if isnothing(storage.maximum_power_capacity)
             @variable(m, bes_power_capacity >= 0)
@@ -100,7 +100,7 @@ function define_bes_soc_energy_conservation!(
     sets::Sets,
 )
     # Set equality constraint to maintain BES state of charge for the first time step
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
             @constraint(
                 m,
@@ -163,7 +163,7 @@ function define_bes_final_soc_constraint!(
     sets::Sets,
 )
     # Prevent BES final state of charge from being less than BES initial state of charge
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
             @constraint(
                 m,
@@ -207,7 +207,7 @@ function define_bes_charging_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the BES charging power variable
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         @constraint(
             m,
             bes_charging_upper_bound[t in 1:(sets.num_time_steps)],
@@ -241,7 +241,7 @@ function define_bes_discharging_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the BES discharging power variable
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         @constraint(
             m,
             bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
@@ -275,7 +275,7 @@ function define_bes_soc_lower_bound!(
     sets::Sets,
 )
     # Set the lower bound for the BES state of charge variable
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
             @constraint(
                 m,
@@ -317,7 +317,7 @@ function define_bes_soc_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the BES state of charge variable
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
             @constraint(
                 m,

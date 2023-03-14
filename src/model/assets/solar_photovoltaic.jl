@@ -47,7 +47,7 @@ function define_solar_pv_variables!(
     @variable(m, p_pv[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the PV system capacity variable, if performing capacity expansion
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         if isnothing(solar.maximum_system_capacity)
             @variable(m, pv_capacity >= 0)
         else
@@ -78,7 +78,7 @@ function define_solar_pv_generation_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the PV power generation variable
-    if scenario.problem_type == "cem"
+    if scenario.problem_type == "CEM"
         @constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
