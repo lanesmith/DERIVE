@@ -111,16 +111,17 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     if !isnothing(tariff.monthly_maximum_demand_rates)
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             # Initialize the mask and set the rate
-            mask[!, "monthly_maximum_" * string(m)] = zeros(length(mask[!, "timestamp"]))
-            rates["monthly_maximum_" * string(m)] =
+            mask[!, "monthly_maximum_" * string(m) * "_"] =
+                zeros(length(mask[!, "timestamp"]))
+            rates["monthly_maximum_" * string(m) * "_"] =
                 tariff.monthly_maximum_demand_rates[seasons_by_month[m]]["rate"]
 
             # Set the mask accordingly
-            mask[!, "monthly_maximum_" * string(m)] =
+            mask[!, "monthly_maximum_" * string(m) * "_"] =
                 ifelse.(
                     month.(mask.timestamp) .== m,
                     1,
-                    mask[!, "monthly_maximum_" * string(m)],
+                    mask[!, "monthly_maximum_" * string(m) * "_"],
                 )
         end
     end
@@ -145,18 +146,20 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                             "monthly_" *
                             tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] *
                             "_" *
-                            string(m)
+                            string(m) *
+                            "_"
                         ) in names(mask)
                     )
                         mask[
                             !,
                             "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                 m,
-                            ),
+                            ) * "_",
                         ] = zeros(length(mask[!, "timestamp"]))
                         rates["monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                             m,
-                        )] = tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["rate"]
+                        ) * "_"] =
+                            tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["rate"]
                     end
 
                     # Set the mask accordingly
@@ -164,7 +167,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                         !,
                         "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                             m,
-                        ),
+                        ) * "_",
                     ] =
                         ifelse.(
                             (month.(mask.timestamp) .== m) .& (hour.(mask.timestamp) .== h),
@@ -173,7 +176,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                 !,
                                 "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                     m,
-                                ),
+                                ) * "_",
                             ],
                         )
 
@@ -183,7 +186,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                             !,
                             "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                 m,
-                            ),
+                            ) * "_",
                         ] =
                             ifelse.(
                                 identify_weekends(mask.timestamp, m),
@@ -192,7 +195,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                     !,
                                     "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                         m,
-                                    ),
+                                    ) * "_",
                                 ],
                             )
                     end
@@ -203,7 +206,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                             !,
                             "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                 m,
-                            ),
+                            ) * "_",
                         ] =
                             ifelse.(
                                 identify_holidays(mask.timestamp, m),
@@ -212,7 +215,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                     !,
                                     "monthly_" * tariff.monthly_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                         m,
-                                    ),
+                                    ) * "_",
                                 ],
                             )
                     end
@@ -254,19 +257,20 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                     tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] *
                                     "_" *
                                     string(m) *
-                                    "_" *
-                                    string(d)
+                                    "-" *
+                                    string(d) *
+                                    "_"
                                 ) in names(mask)
                             )
                                 mask[
                                     !,
                                     "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                         m,
-                                    ) * "_" * string(d),
+                                    ) * "-" * string(d) * "_",
                                 ] = zeros(length(mask[!, "timestamp"]))
                                 rates["daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                     m,
-                                ) * "_" * string(d)] =
+                                ) * "-" * string(d) * "_"] =
                                     tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["rate"]
                             end
 
@@ -275,7 +279,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                 !,
                                 "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                     m,
-                                ) * "_" * string(d),
+                                ) * "-" * string(d) * "_",
                             ] =
                                 ifelse.(
                                     (month.(mask.timestamp) .== m) .&
@@ -286,7 +290,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                         !,
                                         "daily_" * tariff.daily_demand_tou_rates[seasons_by_month[m]][h]["label"] * "_" * string(
                                             m,
-                                        ) * "_" * string(d),
+                                        ) * "-" * string(d) * "_",
                                     ],
                                 )
                         end

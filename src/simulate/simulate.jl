@@ -1,7 +1,7 @@
 """
     create_sets(
         start_date::Dates.Date,
-        last_date::Dates.Date,
+        end_date::Dates.Date,
         bes_initial_soc::Float64,
         scenario::Scenario,
         tariff::Tariff,
@@ -16,7 +16,7 @@ sets of time periods.
 """
 function create_sets(
     start_date::Dates.Date,
-    last_date::Dates.Date,
+    end_date::Dates.Date,
     bes_initial_soc::Float64,
     scenario::Scenario,
     tariff::Tariff,
@@ -46,12 +46,8 @@ function create_sets(
         Dates.day(start_date),
         0,
     )
-    end_index = Dates.DateTime(
-        Dates.year(last_date),
-        Dates.month(last_date),
-        Dates.day(last_date),
-        23,
-    )
+    end_index =
+        Dates.DateTime(Dates.year(end_date), Dates.month(end_date), Dates.day(end_date), 23)
 
     # Partition the demand profile accordingly
     sets["demand"] = filter(
@@ -105,9 +101,10 @@ function create_sets(
         sets["demand_prices"] = Dict{Int64,Any}()
         sets["demand_mask"] = Dict{Int64,Any}()
         period_counter = 1
-        if scenario.optimization_horizon == "day"
+        if scenario.optimization_horizon == "DAY"
             for k in keys(tariff.demand_prices)
-                if occursin("monthly", k) & occursin(string(Dates.month(start_date)), k)
+                if occursin("monthly", k) &
+                   occursin("_" * string(Dates.month(start_index)) * "_", k)
                     sets["demand_prices"][period_counter] = tariff.demand_prices[k]
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
@@ -118,7 +115,11 @@ function create_sets(
                     ]
                     period_counter += 1
                 elseif occursin("daily", k) & occursin(
-                    string(Dates.month(start_date)) * "_" * string(Dates.day(start_date)),
+                    "_" *
+                    string(Dates.month(start_index)) *
+                    "-" *
+                    string(Dates.day(start_index)) *
+                    "_",
                     k,
                 )
                     sets["demand_prices"][period_counter] = tariff.demand_prices[k]
@@ -132,9 +133,10 @@ function create_sets(
                     period_counter += 1
                 end
             end
-        elseif scenario.optimization_horizon == "month"
+        elseif scenario.optimization_horizon == "MONTH"
             for k in keys(tariff.demand_prices)
-                if occursin("monthly", k) & occursin(string(Dates.month(start_date)), k)
+                if occursin("monthly", k) &
+                   occursin("_" * string(Dates.month(start_index)) * "_", k)
                     sets["demand_prices"][period_counter] = tariff.demand_prices[k]
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
@@ -145,7 +147,7 @@ function create_sets(
                     ]
                     period_counter += 1
                 elseif occursin("daily", k) &
-                       occursin("_" * string(Dates.month(start_date)) * "_", k)
+                       occursin("_" * string(Dates.month(start_index)) * "-", k)
                     sets["demand_prices"][period_counter] = tariff.demand_prices[k]
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
@@ -157,7 +159,7 @@ function create_sets(
                     period_counter += 1
                 end
             end
-        elseif scenario.optimization_horizon == "year"
+        elseif scenario.optimization_horizon == "YEAR"
             for k in keys(tariff.demand_prices)
                 sets["demand_prices"][period_counter] = tariff.demand_prices[k]
                 sets["demand_mask"][period_counter] = tariff.demand_mask[!, k]
@@ -252,7 +254,7 @@ function solve_problem(
     output_folder::Union{String,Nothing}=nothing,
 )
     # Perform the simulation, depending on the optimization horizon
-    if scenario.optimization_horizon == "day"
+    if scenario.optimization_horizon == "DAY"
         simulate_by_day(
             scenario,
             tariff,
@@ -263,7 +265,7 @@ function solve_problem(
             storage,
             output_folder,
         )
-    elseif scenario.optimization_horizon == "month"
+    elseif scenario.optimization_horizon == "MONTH"
         simulate_by_month(
             scnario,
             tariff,
@@ -274,7 +276,7 @@ function solve_problem(
             storage,
             output_folder,
         )
-    elseif scenario.optimization_horizon == "year"
+    elseif scenario.optimization_horizon == "YEAR"
         simulate_by_year(
             scenario,
             tariff,
