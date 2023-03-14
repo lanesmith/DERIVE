@@ -220,7 +220,7 @@ function load_and_preprocess_data(input_folder::String)
 
     # Perform extra preprocessing of input data, as necessary
     tariff = create_rate_profiles(scenario, tariff)
-    if isnothing(solar.capacity_factor_profile)
+    if solar.enabled & isnothing(solar.capacity_factor_profile)
         solar = create_solar_capacity_factor_profile(scenario, solar)
     end
     println("All data preprocessing complete!")
