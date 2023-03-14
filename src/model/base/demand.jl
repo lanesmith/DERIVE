@@ -18,7 +18,7 @@ function define_demand_variables!(m::JuMP.Model, sets::Sets)
 end
 
 """
-    define_nonnegative_net_demand_cosntraint!(m::JuMP.Model, sets::Sets)
+    define_nonnegative_net_demand_constraint!(m::JuMP.Model, sets::Sets)
 
 Linear inequality constraint that further helps define the nonnegative net demand decision 
 variable. Mathematically, nonnegative net demand is the pointwise maximum of net demand at 
@@ -26,7 +26,7 @@ a give time step and zero. In a linear program, this is realized through two ine
 constraints that make the nonnegative net demand decision variable greater than or equal to 
 net demand and greater than or equal to zero at all time steps.
 """
-function define_nonnegative_net_demand_cosntraint!(m::JuMP.Model, sets::Sets)
+function define_nonnegative_net_demand_constraint!(m::JuMP.Model, sets::Sets)
     # Define the nonnegative net demand variable using an inequality constraint
     @constraint(
         m,

@@ -23,7 +23,7 @@ function define_production_cost_objective_function!(
     end
 
     # Add in time-of-use energy charges
-    add_to_expression!(obj, sum(m[:d_net] .* sets.energy_prices))
+    add_to_expression!(obj, sum(m[:d_net_pos] .* sets.energy_prices))
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
@@ -110,7 +110,7 @@ function build_optimization_model(
     end
 
     # Define demand-related constraints
-    define_nonnegative_net_demand_cosntraint!(m, sets)
+    define_nonnegative_net_demand_constraint!(m, sets)
     define_maximum_demand_during_periods_constraint!(m, sets)
 
     # Define the non-export constraint for BES, if enabled and applicable
