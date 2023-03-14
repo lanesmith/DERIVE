@@ -162,7 +162,7 @@ Base.@kwdef struct Sets
     shift_up_capacity::Union{Vector{Float64},Nothing}
     shift_down_capacity::Union{Vector{Float64},Nothing}
     energy_prices::Union{Vector{Float64},Nothing}
-    demand_prices::Union{Dict,Nothing}
+    demand_prices::Union{Vector{Float64},Nothing}
     demand_mask::Union{Dict,Nothing}
     nem_prices::Union{Vector{Float64},Nothing}
     bes_initial_soc::Union{Float64,Nothing}

@@ -98,14 +98,14 @@ function create_sets(
 
     # Partition the demand prices and demand mask accordingly
     if !isnothing(tariff.demand_prices)
-        sets["demand_prices"] = Dict{Int64,Any}()
+        sets["demand_prices"] = Vector{Float64}()
         sets["demand_mask"] = Dict{Int64,Any}()
         period_counter = 1
         if scenario.optimization_horizon == "DAY"
             for k in keys(tariff.demand_prices)
                 if occursin("monthly", k) &
                    occursin("_" * string(Dates.month(start_index)) * "_", k)
-                    sets["demand_prices"][period_counter] = tariff.demand_prices[k]
+                    push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
                         tariff.demand_mask,
@@ -122,7 +122,7 @@ function create_sets(
                     "_",
                     k,
                 )
-                    sets["demand_prices"][period_counter] = tariff.demand_prices[k]
+                    push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
                         tariff.demand_mask,
@@ -137,7 +137,7 @@ function create_sets(
             for k in keys(tariff.demand_prices)
                 if occursin("monthly", k) &
                    occursin("_" * string(Dates.month(start_index)) * "_", k)
-                    sets["demand_prices"][period_counter] = tariff.demand_prices[k]
+                    push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
                         tariff.demand_mask,
@@ -148,7 +148,7 @@ function create_sets(
                     period_counter += 1
                 elseif occursin("daily", k) &
                        occursin("_" * string(Dates.month(start_index)) * "-", k)
-                    sets["demand_prices"][period_counter] = tariff.demand_prices[k]
+                    push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][period_counter] = filter(
                         row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
                         tariff.demand_mask,
@@ -161,7 +161,7 @@ function create_sets(
             end
         elseif scenario.optimization_horizon == "YEAR"
             for k in keys(tariff.demand_prices)
-                sets["demand_prices"][period_counter] = tariff.demand_prices[k]
+                push!(sets["demand_prices"], tariff.demand_prices[k])
                 sets["demand_mask"][period_counter] = tariff.demand_mask[!, k]
                 period_counter += 1
             end

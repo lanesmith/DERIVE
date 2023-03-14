@@ -19,31 +19,19 @@ function define_production_cost_objective_function!(
 
     # Add in demand charges, if applicable
     if !isnothing(sets.demand_prices)
-        add_to_expression!(
-            obj,
-            sum(
-                m[:d_max][p] * sets.demand_prices[p] for
-                p = 1:(sets.num_demand_charge_periods)
-            ),
-        )
+        add_to_expression!(obj, sum(m[:d_max] .* sets.demand_prices))
     end
 
     # Add in time-of-use energy charges
-    add_to_expression!(
-        obj,
-        sum(m[:d_net][t] * sets.energy_prices[t] for t = 1:(sets.num_time_steps)),
-    )
+    add_to_expression!(obj, sum(m[:d_net] .* sets.energy_prices))
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
-        add_to_expression!(
-            obj,
-            sum(
-                (m[:d_net][t] - m[:d_net_pos][t]) * sets.nem_prices[t] for
-                t = 1:(sets.num_time_steps)
-            ),
-        )
+        add_to_expression!(obj, sum((m[:d_net] - m[:d_net_pos]) .* sets.nem_prices))
     end
+
+    # Create the objective function
+    @objective(m, Min, obj)
 end
 
 """
