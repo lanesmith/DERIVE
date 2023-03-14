@@ -9,7 +9,7 @@ function define_simple_shiftable_demand_model!(m::JuMP.Model, demand::Demand, se
     define_ssd_variables!(m, sets)
 
     # Update the expression for net demand
-    add_to_expression!(m[:d_net], m[:d_dev])
+    add_to_expression!.(m[:d_net], m[:d_dev])
 
     # Create constraints related to SSD
     define_ssd_lower_bound!(m, sets)

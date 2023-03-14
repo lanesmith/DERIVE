@@ -14,7 +14,7 @@ function define_demand_variables!(m::JuMP.Model, sets::Sets)
     @variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
 
     # Create expression for net demand; update according to program/resource participation
-    @expression(m, d_net[t in 1:(sets.num_time_steps)], sets.demand[t])
+    @expression(m, d_net[t in 1:(sets.num_time_steps)], AffExpr(sets.demand[t]))
 end
 
 """
@@ -49,8 +49,8 @@ function define_maximum_demand_during_periods_constraint!(m::JuMP.Model, sets::S
     @constraint(
         m,
         maximum_demand_during_periods_constraint[
-            p in sets.num_demand_charge_periods,
-            t in sets.num_time_steps,
+            p in 1:(sets.num_demand_charge_periods),
+            t in 1:(sets.num_time_steps),
         ],
         sets.demand_mask[p][t] * m[:d_net][t] <= m[:d_max][p]
     )

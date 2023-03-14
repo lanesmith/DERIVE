@@ -19,8 +19,8 @@ function define_battery_energy_storage_model!(
     define_bes_variables!(m, scenario, storage, sets)
 
     # Update the expression for net demand
-    add_to_expression!(m[:d_net], m[:p_cha])
-    add_to_expression!(m[:d_net], -1 .* m[:p_dis])
+    add_to_expression!.(m[:d_net], m[:p_cha])
+    add_to_expression!.(m[:d_net], -1 .* m[:p_dis])
 
     # Create constraints related to BES
     define_bes_soc_energy_conservation!(m, scenario, storage, sets)

@@ -19,7 +19,7 @@ function define_solar_photovoltaic_model!(
     define_solar_pv_variables!(m, scenario, solar, sets)
 
     # Update the expression for net demand
-    add_to_expression!(m[:d_net], -1 .* m[:p_pv])
+    add_to_expression!.(m[:d_net], -1 .* m[:p_pv])
 
     # Create contraints related to solar PV
     define_solar_pv_generation_upper_bound!(m, scenario, solar, sets)
