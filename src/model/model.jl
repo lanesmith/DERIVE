@@ -81,7 +81,7 @@ function build_optimization_model(
 )::JuMP.Model
     # Determine the solver
     if scenario.optimization_solver == "GLPK"
-        s = GLPK.Solver
+        s = GLPK.Optimizer
     elseif scenario.optimization_solver == "GUROBI"
         s = Gurobi.Optimizer
     elseif scenario.optimization_solver == "HIGHS"
