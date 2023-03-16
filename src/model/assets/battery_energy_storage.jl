@@ -2,6 +2,7 @@
     define_battery_energy_storage_model!(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
         storage::Storage,
         sets::Sets,
     )
@@ -12,6 +13,7 @@ Sets the decision variables and constraints associated with the battery energy s
 function define_battery_energy_storage_model!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     storage::Storage,
     sets::Sets,
 )
@@ -20,7 +22,12 @@ function define_battery_energy_storage_model!(
 
     # Update the expression for net demand
     add_to_expression!.(m[:d_net], m[:p_cha])
-    add_to_expression!.(m[:d_net], -1 .* m[:p_dis])
+    add_to_expression!.(m[:d_net], -1 .* m[:p_dis_btm])
+
+    # Update the expression for total exports, if net metering and BES exports are enabled
+    if tariff.nem_enabled & !storage.nonexport
+        add_to_expression!.(m[:p_exports], m[:p_dis_exp])
+    end
 
     # Create constraints related to BES
     define_bes_soc_energy_conservation!(m, scenario, storage, sets)
@@ -52,9 +59,14 @@ function define_bes_variables!(
     storage::Storage,
     sets::Sets,
 )
-    # Set the BES charge and discharge variables
+    # Set the BES charge and discharge variables for behind-the-meter (BTM) use
     @variable(m, p_cha[t in 1:(sets.num_time_steps)] >= 0)
-    @variable(m, p_dis[t in 1:(sets.num_time_steps)] >= 0)
+    @variable(m, p_dis_btm[t in 1:(sets.num_time_steps)] >= 0)
+
+    # Set the BES discharge variables for export use (e.g., for net metering)
+    if !storage.nonexport
+        @variable(m, p_dis_exp[t in 1:(sets.num_time_steps)] >= 0)
+    end
 
     # Set the BES state of charge variable
     @variable(m, soc[t in 1:(sets.num_time_steps)])
@@ -99,47 +111,96 @@ function define_bes_soc_energy_conservation!(
     storage::Storage,
     sets::Sets,
 )
-    # Set equality constraint to maintain BES state of charge for the first time step
-    if scenario.problem_type == "CEM"
-        if isnothing(storage.duration)
-            @constraint(
-                m,
-                bes_soc_energy_conservation_initial,
-                m[:soc][1] ==
-                (1 - storage.loss_rate) * sets.bes_initial_soc * m[:bes_energy_capacity] +
-                storage.charge_eff * m[:p_cha][1] -
-                (1 / storage.discharge_eff) * m[:p_dis][1]
-            )
+    # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
+    if storage.nonexport
+        # Set equality constraint to maintain BES state of charge for the first time step
+        if scenario.problem_type == "CEM"
+            if isnothing(storage.duration)
+                @constraint(
+                    m,
+                    bes_soc_energy_conservation_initial,
+                    m[:soc][1] ==
+                    (1 - storage.loss_rate) *
+                    sets.bes_initial_soc *
+                    m[:bes_energy_capacity] + storage.charge_eff * m[:p_cha][1] -
+                    (1 / storage.discharge_eff) * m[:p_dis_btm][1]
+                )
+            else
+                @constraint(
+                    m,
+                    bes_soc_energy_conservation_initial,
+                    m[:soc][1] ==
+                    (1 - storage.loss_rate) *
+                    sets.bes_initial_soc *
+                    storage.duration *
+                    m[:bes_power_capacity] + storage.charge_eff * m[:p_cha][1] -
+                    (1 / storage.discharge_eff) * m[:p_dis_btm][1]
+                )
+            end
         else
             @constraint(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
-                (1 - storage.loss_rate) *
-                sets.bes_initial_soc *
-                storage.duration *
-                m[:bes_power_capacity] + storage.charge_eff * m[:p_cha][1] -
-                (1 / storage.discharge_eff) * m[:p_dis][1]
+                (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
+                storage.charge_eff * m[:p_cha][1] -
+                (1 / storage.discharge_eff) * m[:p_dis_btm][1]
             )
         end
-    else
+
+        # Set equality constraint to maintain BES state of charge for all other time steps
         @constraint(
             m,
-            bes_soc_energy_conservation_initial,
-            m[:soc][1] ==
-            (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
-            storage.charge_eff * m[:p_cha][1] - (1 / storage.discharge_eff) * m[:p_dis][1]
+            bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
+            m[:soc][t + 1] ==
+            (1 - storage.loss_rate) * m[:soc][t] + storage.charge_eff * m[:p_cha][t + 1] -
+            (1 / storage.discharge_eff) * m[:p_dis_btm][t + 1]
+        )
+    else
+        # Set equality constraint to maintain BES state of charge for the first time step
+        if scenario.problem_type == "CEM"
+            if isnothing(storage.duration)
+                @constraint(
+                    m,
+                    bes_soc_energy_conservation_initial,
+                    m[:soc][1] ==
+                    (1 - storage.loss_rate) *
+                    sets.bes_initial_soc *
+                    m[:bes_energy_capacity] + storage.charge_eff * m[:p_cha][1] -
+                    (1 / storage.discharge_eff) * (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                )
+            else
+                @constraint(
+                    m,
+                    bes_soc_energy_conservation_initial,
+                    m[:soc][1] ==
+                    (1 - storage.loss_rate) *
+                    sets.bes_initial_soc *
+                    storage.duration *
+                    m[:bes_power_capacity] + storage.charge_eff * m[:p_cha][1] -
+                    (1 / storage.discharge_eff) * (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                )
+            end
+        else
+            @constraint(
+                m,
+                bes_soc_energy_conservation_initial,
+                m[:soc][1] ==
+                (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
+                storage.charge_eff * m[:p_cha][1] -
+                (1 / storage.discharge_eff) * (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+            )
+        end
+
+        # Set equality constraint to maintain BES state of charge for all other time steps
+        @constraint(
+            m,
+            bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
+            m[:soc][t + 1] ==
+            (1 - storage.loss_rate) * m[:soc][t] + storage.charge_eff * m[:p_cha][t + 1] -
+            (1 / storage.discharge_eff) * (m[:p_dis_btm][t + 1] + m[:p_dis_exp][t + 1])
         )
     end
-
-    # Set equality constraint to maintain BES state of charge for all other time steps
-    @constraint(
-        m,
-        bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
-        m[:soc][t + 1] ==
-        (1 - storage.loss_rate) * m[:soc][t] + storage.charge_eff * m[:p_cha][t + 1] -
-        (1 / storage.discharge_eff) * m[:p_dis][t + 1]
-    )
 end
 
 """
@@ -240,19 +301,37 @@ function define_bes_discharging_upper_bound!(
     storage::Storage,
     sets::Sets,
 )
-    # Set the upper bound for the BES discharging power variable
-    if scenario.problem_type == "CEM"
-        @constraint(
-            m,
-            bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_dis][t] <= m[:bes_power_capacity]
-        )
+    # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
+    if storage.nonexport
+        # Set the upper bound for the BES discharging power variable
+        if scenario.problem_type == "CEM"
+            @constraint(
+                m,
+                bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_dis_btm][t] <= m[:bes_power_capacity]
+            )
+        else
+            @constraint(
+                m,
+                bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_dis_btm][t] <= storage.power_capacity
+            )
+        end
     else
-        @constraint(
-            m,
-            bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_dis][t] <= storage.power_capacity
-        )
+        # Set the upper bound for the BES discharging power variable
+        if scenario.problem_type == "CEM"
+            @constraint(
+                m,
+                bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_dis_btm][t] + m[:p_dis_exp][t] <= m[:bes_power_capacity]
+            )
+        else
+            @constraint(
+                m,
+                bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_dis_btm][t] + m[:p_dis_exp][t] <= storage.power_capacity
+            )
+        end
     end
 end
 

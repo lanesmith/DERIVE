@@ -24,10 +24,10 @@ include("prepare/prepare_solar.jl")
 # Include the mathematical models
 include("model/model.jl")
 include("model/base/demand.jl")
-include("model/assets/solar_photovoltaic.jl")
+include("model/assets/solar_photovoltaics.jl")
 include("model/assets/battery_energy_storage.jl")
 include("model/assets/simple_shiftable_demand.jl")
-include("model/tariffs/export_rules.jl")
+include("model/tariffs/interconnection_rules.jl")
 
 # Include the simulation architecture
 include("simulate/simulate.jl")

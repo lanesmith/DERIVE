@@ -2,6 +2,7 @@
     define_solar_photovoltaic_model!(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
         solar::Solar,
         sets::Sets,
     )
@@ -12,14 +13,20 @@ system model.
 function define_solar_photovoltaic_model!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     solar::Solar,
     sets::Sets,
 )
     # Create variables related to a solar photovoltaic (PV) system
-    define_solar_pv_variables!(m, scenario, solar, sets)
+    define_solar_pv_variables!(m, scenario, tariff, solar, sets)
 
     # Update the expression for net demand
-    add_to_expression!.(m[:d_net], -1 .* m[:p_pv])
+    add_to_expression!.(m[:d_net], -1 .* m[:p_pv_btm])
+
+    # Update the expression for total exports, if net energy metering is enabled
+    if tariff.nem_enabled
+        add_to_expression!.(m[:p_exports], m[:p_pv_exp])
+    end
 
     # Create contraints related to solar PV
     define_solar_pv_generation_upper_bound!(m, scenario, solar, sets)
@@ -34,17 +41,26 @@ end
     )
 
 Creates decision variables to determine the amount of solar photovoltaic (PV) generation 
-that should be created during each time step and, for capacity expansion modeling, the size 
-of the solar PV system.
+that should be generated during each time step and, for capacity expansion modeling, the 
+size of the solar PV system. PV generation is separated into the amount that is used to 
+meet behind-the-meter (BTM) demand (i.e., considered in net demand) and the amount that is 
+exported to the grid (e.g., through a net metering program).
 """
 function define_solar_pv_variables!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     solar::Solar,
     sets::Sets,
 )
-    # Set the solar PV power generation variables
-    @variable(m, p_pv[t in 1:(sets.num_time_steps)] >= 0)
+
+    # Set the solar PV power generation variables for behind-the-meter (BTM) use
+    @variable(m, p_pv_btm[t in 1:(sets.num_time_steps)] >= 0)
+
+    # Set the solar PV power generation variables for export use (e.g., for net metering)
+    if tariff.nem_enabled
+        @variable(m, p_pv_exp[t in 1:(sets.num_time_steps)] >= 0)
+    end
 
     # Set the PV system capacity variable, if performing capacity expansion
     if scenario.problem_type == "CEM"
@@ -65,7 +81,7 @@ end
     )
 
 Linear inequality constraint that provides an upper bound on the amount of solar 
-photovoltaic (PV) generation can be generated in each time step. For production cost 
+photovoltaic (PV) generation that can be generated in each time step. For production cost 
 modeling, the upper bound is the product of the solar capacity factor profile and the user-
 specified solar PV system capacity. For capacity expansion modeling, the upper bound is the 
 product of the solar capacity factor profile and the solar PV system capacity decision 
@@ -82,13 +98,15 @@ function define_solar_pv_generation_upper_bound!(
         @constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv][t] <= sets.solar_capacity_factor_profile[t] * m[:pv_capacity]
+            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+            sets.solar_capacity_factor_profile[t] * m[:pv_capacity]
         )
     else
         @constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv][t] <= sets.solar_capacity_factor_profile[t] * solar.power_capacity
+            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+            sets.solar_capacity_factor_profile[t] * solar.power_capacity
         )
     end
 end

@@ -14,7 +14,7 @@ function define_production_cost_objective_function!(
     tariff::Tariff,
     sets::Sets,
 )
-    # Initialize and expression for the objective function
+    # Initialize an expression for the objective function
     @expression(m, obj, AffExpr())
 
     # Add in demand charges, if applicable
@@ -27,7 +27,7 @@ function define_production_cost_objective_function!(
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
-        add_to_expression!(obj, sum((m[:d_net] - m[:d_net_pos]) .* sets.nem_prices))
+        add_to_expression!(obj, -1 * sum(m[:p_exports] .* sets.nem_prices))
     end
 
     # Create the objective function
@@ -91,17 +91,17 @@ function build_optimization_model(
     # Build initial JuMP optimization model
     m = JuMP.Model(s)
 
-    # Define demand-related variables
-    define_demand_variables!(m, sets)
+    # Define demand-related variables and expressions
+    define_demand_variables!(m, tariff, sets)
 
     # Add the solar photovoltaic (PV) model, if enabled
     if solar.enabled
-        define_solar_photovoltaic_model!(m, scenario, solar, sets)
+        define_solar_photovoltaic_model!(m, scenario, tariff, solar, sets)
     end
 
     # Add the battery energy storage (BES) model, if enabled
     if storage.enabled
-        define_battery_energy_storage_model!(m, scenario, storage, sets)
+        define_battery_energy_storage_model!(m, scenario, tariff, storage, sets)
     end
 
     # Add the simplified shiftable demand (SSD) model, if enabled
@@ -113,10 +113,8 @@ function build_optimization_model(
     define_nonnegative_net_demand_constraint!(m, sets)
     define_maximum_demand_during_periods_constraint!(m, sets)
 
-    # Define the non-export constraint for BES, if enabled and applicable
-    if storage.nonexport & storage.enabled
-        define_nonexport_constraint!(m, tariff, solar, sets)
-    end
+    # Define the non-export constraint for net demand (exports are handled separately)
+    define_net_demand_nonexport_constraint!(m, sets)
 
     # Define the non-import constraint for BES, if enabled and applicable
     if storage.nonimport & storage.enabled
