@@ -22,7 +22,7 @@ end
 
 Linear inequality constraint that further helps define the nonnegative net demand decision 
 variable. Mathematically, nonnegative net demand is the pointwise maximum of net demand at 
-a give time step and zero. In a linear program, this is realized through two inequality 
+a given time step and zero. In a linear program, this is realized through two inequality 
 constraints that make the nonnegative net demand decision variable greater than or equal to 
 net demand and greater than or equal to zero at all time steps.
 """
