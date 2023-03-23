@@ -7,6 +7,7 @@
         demand::Demand,
         solar::Solar,
         storage::Storage,
+        results::DataFrames.DataFrame,
         output_folder::Union{String,Nothing}=nothing,
     )
 
@@ -21,7 +22,8 @@ function simulate_by_month(
     demand::Demand,
     solar::Solar,
     storage::Storage,
-    output_folder::Union{String,Nothing}=nothing,
+    time_series_results::DataFrames.DataFrame,
+    output_filepath::Union{String,Nothing}=nothing,
 )
     # Set the initial state of charge for the battery energy storage (BES) system
     bes_initial_soc = storage.soc_initial
@@ -30,12 +32,12 @@ function simulate_by_month(
     for i = 1:12
         # Identify the start and end dates
         start_date = Dates.Date(scenario.year, i, 1)
-        last_date = Dates.Date(scenario.year, i, Dates.daysinmonth(scenario.year, i))
+        end_date = Dates.Date(scenario.year, i, Dates.daysinmonth(scenario.year, i))
 
         # Create the sets of useful parameters
         sets = create_sets(
             start_date,
-            last_date,
+            end_date,
             bes_initial_soc,
             scenario,
             tariff,
@@ -58,5 +60,24 @@ function simulate_by_month(
 
         # Solve the optimization problem
         JuMP.optimize!(m)
+
+        # Check that the optimization problem was solved succesfully
+        if JuMP.termination_status(m) != JuMP.MOI.OPTIMAL
+            throw(ErrorException("Optimization problem failed to solve. Please try again."))
+        end
+
+        # Store the necessary time-series results
+        store_time_series_results!(m, sets, time_series_results, start_date, end_date)
+
+        # Pass final state of charge from this pass to initial state of charge of the next
+        bes_initial_soc = last(JuMP.value.(m[:soc])) / storage.energy_capacity
     end
+
+    # Store the time-series results, if desired
+    if !isnothing(output_filepath)
+        CSV(join(output_filepath, "time_series_results.csv"), time_series_results)
+    end
+
+    # Return the results
+    return time_series_results
 end

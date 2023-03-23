@@ -7,7 +7,8 @@
         demand::Demand,
         solar::Solar,
         storage::Storage,
-        output_folder::Union{String,Nothing}=nothing,
+        time_series_results::DataFrames.DataFrame,
+        output_filepath::Union{String,Nothing}=nothing,
     )
 
 Simulate the optimization problem using optimization horizons of one day. Store the 
@@ -21,7 +22,8 @@ function simulate_by_day(
     demand::Demand,
     solar::Solar,
     storage::Storage,
-    output_folder::Union{String,Nothing}=nothing,
+    time_series_results::DataFrames.DataFrame,
+    output_filepath::Union{String,Nothing}=nothing,
 )
     nothing
 end
