@@ -1,5 +1,5 @@
 """
-    calculate_total_irradiance_profile(scenario, solar)
+    calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 
 Calculates the irradiance as observed by the simulated solar photovoltaic (PV) system. 
 Irradiance is based on weather data and the position of the PV array. Equations are 
@@ -7,13 +7,13 @@ obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by M
 """
 function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Create array of day numbers that correspond with each time stamp
-    n = dayofyear.(scenario.weather_data[:, "timestamp"])
+    n = Dates.dayofyear.(scenario.weather_data[!, "timestamp"])
 
     # Calculate the solar declination angle
     δ = 23.45 .* sind.((360 / 365) .* (n .- 81))
 
     # Define local time meridians according to U.S. time zone
-    ltm = Dict(
+    ltm = Dict{String,Int64}(
         "Eastern" => 75,
         "Central" => 90,
         "Mountain" => 105,
@@ -23,7 +23,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     )
 
     # Create array of minutes that correspond with each time stamp for each day
-    t = hour.(scenario.weather_data[:, "timestamp"]) .* 60
+    t = Dates.hour.(scenario.weather_data[!, "timestamp"]) .* 60
 
     # Convert clock time to solar time
     b = (360 / 364) .* (n .- 81)
@@ -46,7 +46,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 
     # Calculate the azimuth angle of the Sun
     ϕ_s = zeros(length(β))
-    for i = 1:length(ϕ_s)
+    for i = 1:lastindex(ϕ_s)
         ϕ_s[i] = asind((cosd(δ[i]) .* sind(hour_angle[i])) / cosd(β[i]))
 
         # Account for the ambiguity of arcsin: test if azimuth is greater or less than 90
@@ -56,7 +56,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Set the collector azimuth angle
-    if solar.collector_azimuth == nothing
+    if isnothing(solar.collector_azimuth)
         # Defaults to due south, which is optimal assuming no complicating constraints
         ϕ_c = 0
     else
@@ -64,7 +64,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Set the tilt angle of the panels
-    if solar.tilt_angle == nothing
+    if isnothing(solar.tilt_angle)
         # Use third-order polynomial fit from fixed-tilt PVWatts simulations that relates 
         # latitude (Northern Hemisphere) and PV tilt angle; source: Jacobson et al., 'World 
         # estimates of PV optimal tilt angles and ratios of sunlight incident upon tilted 
@@ -96,52 +96,56 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     replace!(x -> acosd(x) > 90 ? 0 : x, cosθ)
 
     # Calculate the beam insolation on the collector
-    beam_insolation = scenario.weather_data[:, "DNI"] .* cosθ
+    beam_insolation = scenario.weather_data[!, "DNI"] .* cosθ
 
     # Calculate the diffuse insolation on the collector
     if solar.tracker == "fixed"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
         diffuse_insoltation =
-            scenario.weather_data[:, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
+            scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
         diffuse_insoltation =
-            scenario.weather_data[:, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
+            scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
-        diffuse_insoltation = scenario.weather_data[:, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     end
 
     # Define the ground reflectance coefficient
-    ρ = Dict("default" => 0.2, "fresh snow" => 0.8, "bituminous-and-gravel roof" => 0.1)
+    ρ = Dict{String,Float64}(
+        "default" => 0.2,
+        "fresh snow" => 0.8,
+        "bituminous-and-gravel roof" => 0.1,
+    )
 
     # Calculate the reflected insolation on the collector
     if solar.tracker == "fixed"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 - cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .- (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
         reflected_insolation =
-            scenario.weather_data[:, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
+            scenario.weather_data[!, "GHI"] .* ρ[lowercase(solar.ground_reflectance)] .*
             ((1 - cosd(Σ)) / 2)
     end
 
@@ -150,7 +154,11 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 end
 
 """
-    calculate_solar_generation_profile(scenario, solar)
+    calculate_solar_generation_profile(
+        scenario::Scenario, 
+        solar::Solar, 
+        irradiance::Vector,
+    )
 
 Calculate the power generation profile for the specified PV system using the specified 
 weather data and a supported solution method. The power generation profile is intended to 
@@ -170,13 +178,22 @@ function calculate_solar_generation_profile(
 
     # Define band gaps and fitting parameters for different semiconductor materials. Data 
     # from 'Principles of Semiconductor Devices' by Van Zeghbroeck
-    semiconductor_parameters = Dict(
-        "Silicon" =>
-            Dict("band_gap_0" => 1.166, "α_param" => 4.73e-4, "β_param" => 636),
-        "Germanium" =>
-            Dict("band_gap_0" => 0.7437, "α_param" => 4.77e-4, "β_param" => 235),
-        "Gallium Aresenide" =>
-            Dict("band_gap_0" => 1.519, "α_param" => 5.41e-4, "β_param" => 204),
+    semiconductor_parameters = Dict{String,Dict}(
+        "Silicon" => Dict{String,Float64}(
+            "band_gap_0" => 1.166,
+            "α_param" => 4.73e-4,
+            "β_param" => 636,
+        ),
+        "Germanium" => Dict{String,Float64}(
+            "band_gap_0" => 0.7437,
+            "α_param" => 4.77e-4,
+            "β_param" => 235,
+        ),
+        "Gallium Aresenide" => Dict{String,Float64}(
+            "band_gap_0" => 1.519,
+            "α_param" => 5.41e-4,
+            "β_param" => 204,
+        ),
     )
     constants["band_gap_data"] =
         semiconductor_parameters[titlecase(solar.module_cell_material)]
@@ -187,7 +204,7 @@ function calculate_solar_generation_profile(
 
     # Calculate cell temperature and convert from Celsius to Kelvin
     temperature =
-        scenario.weather_data[:, "Temperature"] .+
+        scenario.weather_data[!, "Temperature"] .+
         ((solar.module_noct - 20) / 800) .* irradiance .+ 273.15
 
     # Calculate the PV module's power profile
@@ -198,7 +215,13 @@ function calculate_solar_generation_profile(
 end
 
 """
-    desoto_iv_curve_method(solar, irradiance, temperature, constants, num_iv_points)
+    desoto_iv_curve_method(
+        solar::Solar, 
+        irradiance::Vector, 
+        temperature::Vector, 
+        constants::Dict, 
+        num_iv_points::Int64=1000,
+    )
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
 the method outlined in De Soto et al., 'Improvement and validation of a model for 
@@ -212,7 +235,7 @@ function desoto_iv_curve_method(
     solar::Solar,
     irradiance::Vector,
     temperature::Vector,
-    constants::Dict,
+    constants::Dict{String,Any},
     num_iv_points::Int64=1000,
 )
     # Calculate the photo-induced current
@@ -333,7 +356,7 @@ function desoto_iv_curve_method(
 end
 
 """
-    create_solar_capacity_factor_profile(scenario, solar, power_profile)
+    create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
 
 Determine the capacity factor profile of the specified PV system with the given weather 
 data. The capacity factor profile is determined by taking the power generation profile for 
@@ -341,7 +364,7 @@ a single PV module and normalizing it by the rated capacity of the PV module.
 """
 function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
     # Initialize the updated Solar struct object
-    solar_ = Dict(string(i) => getfield(solar, i) for i in fieldnames(Solar))
+    solar_ = Dict{String,Any}(string(i) => getfield(solar, i) for i in fieldnames(Solar))
     println("...preparing solar profiles")
 
     # Determine the total irradiance profile
@@ -374,7 +397,7 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
 end
 
 """
-    lambertw(z, tol)
+    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
 
 Solve the principal branch of the Lambert W function using Halley's method. Assume that 
 the input, z, is real and sufficiently greater than the branch point of -1/e. Equations 
