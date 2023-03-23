@@ -9,14 +9,14 @@ updated in other functions to include the contributions of different included as
 """
 function define_demand_variables!(m::JuMP.Model, tariff::Tariff, sets::Sets)
     # Set the maximum net demand during different periods variables
-    @variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
+    JuMP.@variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
 
     # Create expression for net demand; update according to program/resource participation
-    @expression(m, d_net[t in 1:(sets.num_time_steps)], AffExpr(sets.demand[t]))
+    JuMP.@expression(m, d_net[t in 1:(sets.num_time_steps)], JuMP.AffExpr(sets.demand[t]))
 
     # Create expression for total exports; update based on program/resource participation
     if tariff.nem_enabled
-        @expression(m, p_exports[t in 1:(sets.num_time_steps)], AffExpr())
+        JuMP.@expression(m, p_exports[t in 1:(sets.num_time_steps)], JuMP.AffExpr())
     end
 end
 
@@ -31,7 +31,7 @@ otherwise.
 """
 function define_maximum_demand_during_periods_constraint!(m::JuMP.Model, sets::Sets)
     # Define the maximum net demand during different periods using an inequality constraint
-    @constraint(
+    JuMP.@constraint(
         m,
         maximum_demand_during_periods_constraint[
             p in 1:(sets.num_demand_charge_periods),
@@ -50,7 +50,7 @@ loads are handled separately from the net demand expression.
 """
 function define_net_demand_nonexport_constraint!(m::JuMP.Model, sets::Sets)
     # Prevent net demand from exporting to the grid; exports are handled separately
-    @constraint(
+    JuMP.@constraint(
         m,
         net_demand_nonexport_constraint[t in 1:(sets.num_time_steps)],
         m[:d_net][t] >= 0

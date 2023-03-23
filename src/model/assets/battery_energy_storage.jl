@@ -21,12 +21,12 @@ function define_battery_energy_storage_model!(
     define_bes_variables!(m, scenario, storage, sets)
 
     # Update the expression for net demand
-    add_to_expression!.(m[:d_net], m[:p_cha])
-    add_to_expression!.(m[:d_net], -1 .* m[:p_dis_btm])
+    JuMP.add_to_expression!.(m[:d_net], m[:p_cha])
+    JuMP.add_to_expression!.(m[:d_net], -1 .* m[:p_dis_btm])
 
     # Update the expression for total exports, if net metering and BES exports are enabled
     if tariff.nem_enabled & !storage.nonexport
-        add_to_expression!.(m[:p_exports], m[:p_dis_exp])
+        JuMP.add_to_expression!.(m[:p_exports], m[:p_dis_exp])
     end
 
     # Create constraints related to BES
@@ -60,33 +60,36 @@ function define_bes_variables!(
     sets::Sets,
 )
     # Set the BES charge and discharge variables for behind-the-meter (BTM) use
-    @variable(m, p_cha[t in 1:(sets.num_time_steps)] >= 0)
-    @variable(m, p_dis_btm[t in 1:(sets.num_time_steps)] >= 0)
+    JuMP.@variable(m, p_cha[t in 1:(sets.num_time_steps)] >= 0)
+    JuMP.@variable(m, p_dis_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the BES discharge variables for export use (e.g., for net metering)
     if !storage.nonexport
-        @variable(m, p_dis_exp[t in 1:(sets.num_time_steps)] >= 0)
+        JuMP.@variable(m, p_dis_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 
     # Set the BES state of charge variable
-    @variable(m, soc[t in 1:(sets.num_time_steps)])
+    JuMP.@variable(m, soc[t in 1:(sets.num_time_steps)])
 
     # Set the BES power and energy capacity variables, if performing capacity expansion
     if scenario.problem_type == "CEM"
         # Set the BES power capacity to be unbounded or bounded, as specified
         if isnothing(storage.maximum_power_capacity)
-            @variable(m, bes_power_capacity >= 0)
+            JuMP.@variable(m, bes_power_capacity >= 0)
         else
-            @variable(m, 0 <= bes_power_capacity <= storage.maximum_power_capacity)
+            JuMP.@variable(m, 0 <= bes_power_capacity <= storage.maximum_power_capacity)
         end
 
         # Check if duration parameter is provided to see if bes_energy_capacity is needed
         if isnothing(storage.duration)
             # Set the BES energy capacity to be unbounded or bounded, as specified
             if isnothing(storage.maximum_energy_capacity)
-                @variable(m, bes_energy_capacity >= 0)
+                JuMP.@variable(m, bes_energy_capacity >= 0)
             else
-                @variable(m, 0 <= bes_energy_capacity <= storage.maximum_energy_capacity)
+                JuMP.@variable(
+                    m,
+                    0 <= bes_energy_capacity <= storage.maximum_energy_capacity
+                )
             end
         end
     end
@@ -116,7 +119,7 @@ function define_bes_soc_energy_conservation!(
         # Set equality constraint to maintain BES state of charge for the first time step
         if scenario.problem_type == "CEM"
             if isnothing(storage.duration)
-                @constraint(
+                JuMP.@constraint(
                     m,
                     bes_soc_energy_conservation_initial,
                     m[:soc][1] ==
@@ -126,7 +129,7 @@ function define_bes_soc_energy_conservation!(
                     (1 / storage.discharge_eff) * m[:p_dis_btm][1]
                 )
             else
-                @constraint(
+                JuMP.@constraint(
                     m,
                     bes_soc_energy_conservation_initial,
                     m[:soc][1] ==
@@ -138,7 +141,7 @@ function define_bes_soc_energy_conservation!(
                 )
             end
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
@@ -149,7 +152,7 @@ function define_bes_soc_energy_conservation!(
         end
 
         # Set equality constraint to maintain BES state of charge for all other time steps
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
             m[:soc][t + 1] ==
@@ -160,7 +163,7 @@ function define_bes_soc_energy_conservation!(
         # Set equality constraint to maintain BES state of charge for the first time step
         if scenario.problem_type == "CEM"
             if isnothing(storage.duration)
-                @constraint(
+                JuMP.@constraint(
                     m,
                     bes_soc_energy_conservation_initial,
                     m[:soc][1] ==
@@ -170,7 +173,7 @@ function define_bes_soc_energy_conservation!(
                     (1 / storage.discharge_eff) * (m[:p_dis_btm][1] + m[:p_dis_exp][1])
                 )
             else
-                @constraint(
+                JuMP.@constraint(
                     m,
                     bes_soc_energy_conservation_initial,
                     m[:soc][1] ==
@@ -182,7 +185,7 @@ function define_bes_soc_energy_conservation!(
                 )
             end
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
@@ -193,7 +196,7 @@ function define_bes_soc_energy_conservation!(
         end
 
         # Set equality constraint to maintain BES state of charge for all other time steps
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
             m[:soc][t + 1] ==
@@ -226,14 +229,14 @@ function define_bes_final_soc_constraint!(
     # Prevent BES final state of charge from being less than BES initial state of charge
     if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_final_soc_constraint,
                 m[:soc][sets.num_time_steps] >=
                 sets.bes_initial_soc * m[:bes_energy_capacity]
             )
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_final_soc_constraint,
                 m[:soc][sets.num_time_steps] >=
@@ -241,7 +244,7 @@ function define_bes_final_soc_constraint!(
             )
         end
     else
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_final_soc_constraint,
             m[:soc][sets.num_time_steps] >= sets.bes_initial_soc * storage.energy_capacity
@@ -269,13 +272,13 @@ function define_bes_charging_upper_bound!(
 )
     # Set the upper bound for the BES charging power variable
     if scenario.problem_type == "CEM"
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_charging_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_cha][t] <= m[:bes_power_capacity]
         )
     else
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_charging_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_cha][t] <= storage.power_capacity
@@ -305,13 +308,13 @@ function define_bes_discharging_upper_bound!(
     if storage.nonexport
         # Set the upper bound for the BES discharging power variable
         if scenario.problem_type == "CEM"
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:p_dis_btm][t] <= m[:bes_power_capacity]
             )
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:p_dis_btm][t] <= storage.power_capacity
@@ -320,13 +323,13 @@ function define_bes_discharging_upper_bound!(
     else
         # Set the upper bound for the BES discharging power variable
         if scenario.problem_type == "CEM"
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:p_dis_btm][t] + m[:p_dis_exp][t] <= m[:bes_power_capacity]
             )
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:p_dis_btm][t] + m[:p_dis_exp][t] <= storage.power_capacity
@@ -356,20 +359,20 @@ function define_bes_soc_lower_bound!(
     # Set the lower bound for the BES state of charge variable
     if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
                 m[:soc][t] >= storage.soc_min * m[:bes_energy_capacity]
             )
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
                 m[:soc][t] >= storage.soc_min * storage.duration * m[:bes_power_capacity]
             )
         end
     else
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
             m[:soc][t] >= storage.soc_min * storage.energy_capacity
@@ -398,20 +401,20 @@ function define_bes_soc_upper_bound!(
     # Set the upper bound for the BES state of charge variable
     if scenario.problem_type == "CEM"
         if isnothing(storage.duration)
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:soc][t] <= storage.soc_max * m[:bes_energy_capacity]
             )
         else
-            @constraint(
+            JuMP.@constraint(
                 m,
                 bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
                 m[:soc][t] <= storage.soc_max * storage.duration * m[:bes_power_capacity]
             )
         end
     else
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
             m[:soc][t] <= storage.soc_max * storage.energy_capacity

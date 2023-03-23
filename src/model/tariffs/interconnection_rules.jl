@@ -12,7 +12,7 @@ function define_bes_nonimport_constraint!(m::JuMP.Model, solar::Solar, sets::Set
     # Prevent the battery energy storage from charging with grid-provided electricity
     if solar.enabled
         # Limits BES charging power to be no greater than PV generation
-        @constraint(
+        JuMP.@constraint(
             m,
             bes_nonimport_constraint[t in 1:(sets.num_time_steps)],
             m[:p_cha][t] <= m[:p_pv_btm][t]

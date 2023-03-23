@@ -21,11 +21,11 @@ function define_solar_photovoltaic_model!(
     define_solar_pv_variables!(m, scenario, tariff, solar, sets)
 
     # Update the expression for net demand
-    add_to_expression!.(m[:d_net], -1 .* m[:p_pv_btm])
+    JuMP.add_to_expression!.(m[:d_net], -1 .* m[:p_pv_btm])
 
     # Update the expression for total exports, if net energy metering is enabled
     if tariff.nem_enabled
-        add_to_expression!.(m[:p_exports], m[:p_pv_exp])
+        JuMP.add_to_expression!.(m[:p_exports], m[:p_pv_exp])
     end
 
     # Create contraints related to solar PV
@@ -55,19 +55,19 @@ function define_solar_pv_variables!(
 )
 
     # Set the solar PV power generation variables for behind-the-meter (BTM) use
-    @variable(m, p_pv_btm[t in 1:(sets.num_time_steps)] >= 0)
+    JuMP.@variable(m, p_pv_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the solar PV power generation variables for export use (e.g., for net metering)
     if tariff.nem_enabled
-        @variable(m, p_pv_exp[t in 1:(sets.num_time_steps)] >= 0)
+        JuMP.@variable(m, p_pv_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 
     # Set the PV system capacity variable, if performing capacity expansion
     if scenario.problem_type == "CEM"
         if isnothing(solar.maximum_system_capacity)
-            @variable(m, pv_capacity >= 0)
+            JuMP.@variable(m, pv_capacity >= 0)
         else
-            @variable(m, 0 <= pv_capacity <= solar.maximum_system_capacity)
+            JuMP.@variable(m, 0 <= pv_capacity <= solar.maximum_system_capacity)
         end
     end
 end
@@ -95,14 +95,14 @@ function define_solar_pv_generation_upper_bound!(
 )
     # Set the upper bound for the PV power generation variable
     if scenario.problem_type == "CEM"
-        @constraint(
+        JuMP.@constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
             sets.solar_capacity_factor_profile[t] * m[:pv_capacity]
         )
     else
-        @constraint(
+        JuMP.@constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_pv_btm][t] + m[:p_pv_exp][t] <=

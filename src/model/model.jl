@@ -15,23 +15,23 @@ function define_production_cost_objective_function!(
     sets::Sets,
 )
     # Initialize an expression for the objective function
-    @expression(m, obj, AffExpr())
+    JuMP.@expression(m, obj, AffExpr())
 
     # Add in demand charges, if applicable
     if !isnothing(sets.demand_prices)
-        add_to_expression!(obj, sum(m[:d_max] .* sets.demand_prices))
+        JuMP.add_to_expression!(obj, sum(m[:d_max] .* sets.demand_prices))
     end
 
     # Add in time-of-use energy charges
-    add_to_expression!(obj, sum(m[:d_net] .* sets.energy_prices))
+    JuMP.add_to_expression!(obj, sum(m[:d_net] .* sets.energy_prices))
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
-        add_to_expression!(obj, -1 * sum(m[:p_exports] .* sets.nem_prices))
+        JuMP.add_to_expression!(obj, -1 * sum(m[:p_exports] .* sets.nem_prices))
     end
 
     # Create the objective function
-    @objective(m, Min, obj)
+    JuMP.@objective(m, Min, obj)
 end
 
 """

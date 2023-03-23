@@ -9,7 +9,7 @@ function define_simple_shiftable_demand_model!(m::JuMP.Model, demand::Demand, se
     define_ssd_variables!(m, sets)
 
     # Update the expression for net demand
-    add_to_expression!.(m[:d_net], m[:d_dev])
+    JuMP.add_to_expression!.(m[:d_net], m[:d_dev])
 
     # Create constraints related to SSD
     define_ssd_lower_bound!(m, sets)
@@ -27,7 +27,7 @@ positive demand deviation corresponds to demand that is recovered or met preempt
 """
 function define_ssd_variables!(m::JuMP.Model, sets::Sets)
     # Set the demand deviation variables for simple shiftable demand
-    @variable(m, d_dev[t in 1:(sets.num_time_steps)])
+    JuMP.@variable(m, d_dev[t in 1:(sets.num_time_steps)])
 end
 
 """
@@ -39,7 +39,7 @@ to the amount of demand that can be curtailed during a given time step.
 """
 function define_ssd_lower_bound!(m::JuMP.Model, sets::Sets)
     # Set the lower bound on the demand deviations (i.e., demand that can be curtailed)
-    @constraint(
+    JuMP.@constraint(
         m,
         ssd_lower_bound[t in 1:(sets.num_time_steps)],
         m[:d_dev][t] >= sets.shift_down_capacity[t]
@@ -55,7 +55,7 @@ to the amount of demand that can be recovered or met preemptively during a given
 """
 function define_ssd_upper_bound!(m::JuMP.Model, sets::Sets)
     # Set the upper bound on the demand deviations (i.e., demand that can be recovered)
-    @constraint(
+    JuMP.@constraint(
         m,
         ssd_upper_bound[t in 1:(sets.num_time_steps)],
         m[:d_dev][t] <= sets.shift_up_capacity[t]
@@ -70,7 +70,7 @@ optimization horizon.
 """
 function define_ssd_interval_balance!(m::JuMP.Model, sets::Sets)
     # Ensure demand deviations are balanced over the optimization horizon
-    @constraint(
+    JuMP.@constraint(
         m,
         ssd_interval_balance,
         sum(m[:d_dev][t] for t = 1:(sets.num_time_steps)) == 0
@@ -85,7 +85,7 @@ rolling windows of a user-defined length are balanced.
 """
 function define_ssd_rolling_balance!(m::JuMP.Model, demand::Demand, sets::Sets)
     # Ensure demand deviations are balanced over the rolling windows of user-defined length
-    @constraint(
+    JuMP.@constraint(
         m,
         ssd_rolling_balance[k in 1:(sets.num_time_steps - demand.shift_duration + 1)],
         sum(m[:d_dev][τ] for τ = k:(demand.shift_duration + k - 1)) >= 0
