@@ -7,7 +7,7 @@ obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by M
 """
 function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     # Create array of day numbers that correspond with each time stamp
-    n = dayofyear.(scenario.weather_data[!, "timestamp"])
+    n = Dates.dayofyear.(scenario.weather_data[!, "timestamp"])
 
     # Calculate the solar declination angle
     δ = 23.45 .* sind.((360 / 365) .* (n .- 81))
@@ -23,7 +23,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     )
 
     # Create array of minutes that correspond with each time stamp for each day
-    t = hour.(scenario.weather_data[!, "timestamp"]) .* 60
+    t = Dates.hour.(scenario.weather_data[!, "timestamp"]) .* 60
 
     # Convert clock time to solar time
     b = (360 / 364) .* (n .- 81)

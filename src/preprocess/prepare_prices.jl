@@ -7,32 +7,18 @@ function create_energy_rate_profile(
     scenario::Scenario,
     tariff::Tariff,
 )::DataFrames.DataFrame
-    # Determine whether it is a leap year and create annual profile with hourly increments
-    if scenario.year % 4 == 0
-        profile = DataFrames.DataFrame(
-            "timestamp" => collect(
-                Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                    scenario.year,
-                    12,
-                    31,
-                    23,
-                ),
+    # Create annual profile with hourly increments
+    profile = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                scenario.year,
+                12,
+                31,
+                23,
             ),
-            "rates" => zeros(366 * 24),
-        )
-    else
-        profile = DataFrames.DataFrame(
-            "timestamp" => collect(
-                Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                    scenario.year,
-                    12,
-                    31,
-                    23,
-                ),
-            ),
-            "rates" => zeros(365 * 24),
-        )
-    end
+        ),
+        "rates" => zeros(Dates.daysinyear(scenario.year) * 24),
+    )
 
     # Create inverse mapping of seasons to months
     seasons_by_month = Dict{Int64,String}(
@@ -50,7 +36,8 @@ function create_energy_rate_profile(
             # Set rates by hour and month
             profile[!, "rates"] .=
                 ifelse.(
-                    (hour.(profile.timestamp) .== h) .& (month.(profile.timestamp) .== m),
+                    (Dates.hour.(profile.timestamp) .== h) .&
+                    (Dates.month.(profile.timestamp) .== m),
                     tariff.energy_tou_rates[seasons_by_month[m]][h]["rate"],
                     profile[!, "rates"],
                 )
@@ -119,7 +106,7 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
             # Set the mask accordingly
             mask[!, "monthly_maximum_" * string(m) * "_"] =
                 ifelse.(
-                    month.(mask.timestamp) .== m,
+                    Dates.month.(mask.timestamp) .== m,
                     1,
                     mask[!, "monthly_maximum_" * string(m) * "_"],
                 )
@@ -170,7 +157,8 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                         ) * "_",
                     ] =
                         ifelse.(
-                            (month.(mask.timestamp) .== m) .& (hour.(mask.timestamp) .== h),
+                            (Dates.month.(mask.timestamp) .== m) .&
+                            (Dates.hour.(mask.timestamp) .== h),
                             1,
                             mask[
                                 !,
@@ -227,15 +215,15 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
     # Create masks and rates for daily maximum time-of-use (TOU) demand charges
     if !isnothing(tariff.daily_demand_tou_rates)
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
-            for d = 1:Dates.daysinmonth(Date(scenario.year, m))
+            for d = 1:Dates.daysinmonth(Dates.Date(scenario.year, m))
                 # Skip mask, rate for relevant timestamps if holidays, weekends are considered
                 if !(
                     (
                         tariff.weekday_weekend_split &
-                        identify_weekends(Date(scenario.year, m, d), m)
+                        identify_weekends(Dates.Date(scenario.year, m, d), m)
                     ) | (
                         tariff.holiday_split &
-                        identify_holidays(Date(scenario.year, m, d), m)
+                        identify_holidays(Dates.Date(scenario.year, m, d), m)
                     )
                 )
                     for h in sort!(
@@ -282,9 +270,9 @@ function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
                                 ) * "-" * string(d) * "_",
                             ] =
                                 ifelse.(
-                                    (month.(mask.timestamp) .== m) .&
-                                    (day.(mask.timestamp) .== d) .&
-                                    (hour.(mask.timestamp) .== h),
+                                    (Dates.month.(mask.timestamp) .== m) .&
+                                    (Dates.day.(mask.timestamp) .== d) .&
+                                    (Dates.hour.(mask.timestamp) .== h),
                                     1,
                                     mask[
                                         !,
@@ -379,8 +367,10 @@ function identify_weekends(
     timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
 )
-    return ((dayofweek.(timestamp) .== Saturday) .| (dayofweek.(timestamp) .== Sunday)) .&
-           (month.(timestamp) .== month_id)
+    return (
+        (Dates.dayofweek.(timestamp) .== Saturday) .|
+        (Dates.dayofweek.(timestamp) .== Sunday)
+    ) .& (Dates.month.(timestamp) .== month_id)
 end
 
 """
@@ -396,29 +386,29 @@ function identify_holidays(
     month_id::Int64,
 )
     return (
-        ((month.(timestamp) .== 1) .& (day.(timestamp) .== 1)) .|
+        ((Dates.month.(timestamp) .== 1) .& (Dates.day.(timestamp) .== 1)) .|
         (
-            (month.(timestamp) .== 2) .&
-            (dayofweek.(timestamp) .== Monday) .&
-            (dayofweekofmonth.(timestamp) .== 3)
+            (Dates.month.(timestamp) .== 2) .&
+            (Dates.dayofweek.(timestamp) .== Monday) .&
+            (Dates.dayofweekofmonth.(timestamp) .== 3)
         ) .|
         (
-            (month.(timestamp) .== 5) .&
-            (dayofweek.(timestamp) .== Monday) .&
-            (dayofweekofmonth.(timestamp) .== daysofweekinmonth.(timestamp))
+            (Dates.month.(timestamp) .== 5) .&
+            (Dates.dayofweek.(timestamp) .== Monday) .&
+            (Dates.dayofweekofmonth.(timestamp) .== Dates.daysofweekinmonth.(timestamp))
         ) .|
-        ((month.(timestamp) .== 7) .& (day.(timestamp) .== 4)) .|
+        ((Dates.month.(timestamp) .== 7) .& (Dates.day.(timestamp) .== 4)) .|
         (
-            (month.(timestamp) .== 9) .&
-            (dayofweek.(timestamp) .== Monday) .&
-            (dayofweekofmonth.(timestamp) .== 1)
+            (Dates.month.(timestamp) .== 9) .&
+            (Dates.dayofweek.(timestamp) .== Monday) .&
+            (Dates.dayofweekofmonth.(timestamp) .== 1)
         ) .|
-        ((month.(timestamp) .== 11) .& (day.(timestamp) .== 11)) .|
+        ((Dates.month.(timestamp) .== 11) .& (Dates.day.(timestamp) .== 11)) .|
         (
-            (month.(timestamp) .== 11) .&
-            (dayofweek.(timestamp) .== Thursday) .&
-            (dayofweekofmonth.(timestamp) .== 4)
+            (Dates.month.(timestamp) .== 11) .&
+            (Dates.dayofweek.(timestamp) .== Thursday) .&
+            (Dates.dayofweekofmonth.(timestamp) .== 4)
         ) .|
-        ((month.(timestamp) .== 12) .& (day.(timestamp) .== 25))
-    ) .& (month.(timestamp) .== month_id)
+        ((Dates.month.(timestamp) .== 12) .& (Dates.day.(timestamp) .== 25))
+    ) .& (Dates.month.(timestamp) .== month_id)
 end
