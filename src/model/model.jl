@@ -1,17 +1,28 @@
 """
-    define_production_cost_objective_function!(
+    define_objective_function!(
         m::JuMP.Model,
+        scenario::Scenario,
         tariff::Tariff,
+        incentives::Incentives,
+        solar::Solar,
+        storage::Storage,
         sets::Sets,
     )
 
-Creates the objective function for the production cost problem. The objective function is 
-comprised of costs associated with energy charges and demand charges and revenue assocaited 
-with net energy metering (NEM).
+Creates the objective function for the production cost and capacity expansion problems. For 
+production cost, the objective function is comprised of costs associated with energy 
+charges and demand charges and 'revenue' associated with net energy metering (NEM). The 
+objective function for the capacity expansion model builds on that of the production cost 
+model by adding costs associated with asset investment and 'revenues' associated with 
+different incentive programs.
 """
-function define_production_cost_objective_function!(
+function define_objective_function!(
     m::JuMP.Model,
+    scenario::Scenario,
     tariff::Tariff,
+    incentives::Incentives,
+    solar::Solar,
+    storage::Storage,
     sets::Sets,
 )
     # Initialize an expression for the objective function
@@ -30,27 +41,62 @@ function define_production_cost_objective_function!(
         JuMP.add_to_expression!(obj, -1 * sum(m[:p_exports] .* sets.nem_prices))
     end
 
+    # Add in capacity expansion model-specific charges and incentives
+    if scenario.problem_type == "CEM"
+        # Add in capital costs associated with solar photovoltaics (PVs), if applicable
+        if solar.enabled
+            if isnothing(solar.pv_capital_cost)
+                throw(
+                    ErrorException(
+                        "No capital cost is specified for the generation capacity of " *
+                        "solar PVs. Please try again.",
+                    ),
+                )
+            else
+                JuMP.add_to_expression!(
+                    obj,
+                    solar.pv_capital_cost * m[:pv_capacity] / solar.lifespan,
+                )
+            end
+        end
+
+        # Add in capital costs associated with battery energy storage (BES), if applicable
+        if storage.enabled
+            if isnothing(storage.power_capacity_cost)
+                throw(
+                    ErrorException(
+                        "No capital cost is specified for the power capacity of battery " *
+                        "energy storage. Please try again.",
+                    ),
+                )
+            else
+                JuMP.add_to_expression!(
+                    obj,
+                    storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+                )
+            end
+
+            if isnothing(storage.duration)
+                if isnothing(storage.energy_capital_cost)
+                    throw(
+                        ErrorException(
+                            "No capital cost is specified for the energy capacity of " *
+                            "battery energy storage. Please try again.",
+                        ),
+                    )
+                else
+                    JuMP.add_to_expression!(
+                        obj,
+                        storage.energy_capital_cost * m[:bes_energy_capacity] /
+                        storage.lifespan,
+                    )
+                end
+            end
+        end
+    end
+
     # Create the objective function
     JuMP.@objective(m, Min, obj)
-end
-
-"""
-    define_capacity_expansion_objective_function!(
-        m::JuMP.Model,
-        tariff::Tariff,
-        incentives::Incentives,
-        sets::Sets,
-    )
-
-Creates the objective function for the capacity expansion problem.
-"""
-function define_capacity_expansion_objective_function!(
-    m::JuMP.Model,
-    tariff::Tariff,
-    incentives::Incentives,
-    sets::Sets,
-)
-    nothing
 end
 
 """
@@ -118,12 +164,8 @@ function build_optimization_model(
         define_bes_nonimport_constraint!(m, solar, sets)
     end
 
-    # Define the objective function of the optimization model, depending on problem type
-    if scenario.problem_type == "PCM"
-        define_production_cost_objective_function!(m, tariff, sets)
-    else
-        define_capacity_expansion_objective_function!(m, tariff, incentives, sets)
-    end
+    # Define the objective function of the optimization model
+    define_objective_function!(m, scenario, tariff, incentives, solar, storage, sets)
 
     # Return the created JuMP model
     return m

@@ -146,7 +146,8 @@ Base.@kwdef struct Storage
     loss_rate::Float64
     nonexport::Bool
     nonimport::Bool
-    capital_cost::Union{Float64,Nothing}
+    power_capital_cost::Union{Float64,Nothing}
+    energy_capital_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
 end
 
