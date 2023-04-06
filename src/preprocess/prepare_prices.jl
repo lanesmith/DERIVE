@@ -337,7 +337,8 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
     tariff_["energy_prices"] = create_energy_rate_profile(scenario, tariff)
 
     # Create the demand charge profile
-    if !isnothing(tariff.monthly_demand_tou_rates) |
+    if !isnothing(tariff.monthly_maximum_demand_rates) |
+       !isnothing(tariff.monthly_demand_tou_rates) |
        !isnothing(tariff.daily_demand_tou_rates)
         tariff_["demand_prices"], tariff_["demand_mask"] =
             create_demand_rate_profile(scenario, tariff)

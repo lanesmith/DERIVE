@@ -25,8 +25,12 @@ function simulate_by_month(
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
 )
-    # Set the initial state of charge for the battery energy storage (BES) system
-    bes_initial_soc = storage.soc_initial
+    # Set initial state of charge for the battery energy storage (BES) system, if enabled
+    if storage.enabled
+        bes_initial_soc = storage.soc_initial
+    else
+        bes_initial_soc = nothing
+    end
 
     # Loop through the different months
     for i = 1:12
@@ -70,7 +74,11 @@ function simulate_by_month(
         store_time_series_results!(m, sets, time_series_results, start_date, end_date)
 
         # Pass final state of charge from this pass to initial state of charge of the next
-        bes_initial_soc = last(JuMP.value.(m[:soc])) / storage.energy_capacity
+        if storage.enabled
+            bes_initial_soc = last(JuMP.value.(m[:soc])) / storage.energy_capacity
+        else
+            bes_initial_soc = nothing
+        end
     end
 
     # Store the time-series results, if desired

@@ -25,6 +25,13 @@ function simulate_by_year(
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
 )
+    # Set initial state of charge for the battery energy storage (BES) system, if enabled
+    if storage.enabled
+        bes_initial_soc = storage.soc_initial
+    else
+        bes_initial_soc = nothing
+    end
+
     # Identify the start and end dates
     start_date = Dates.Date(scenario.year, 1, 1)
     end_date = Dates.Date(scenario.year, 12, 31)
@@ -33,7 +40,7 @@ function simulate_by_year(
     sets = create_sets(
         start_date,
         end_date,
-        storage.soc_initial,
+        bes_initial_soc,
         scenario,
         tariff,
         demand,
