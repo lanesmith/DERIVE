@@ -27,13 +27,14 @@ include("model/base/demand.jl")
 include("model/assets/solar_photovoltaics.jl")
 include("model/assets/battery_energy_storage.jl")
 include("model/assets/simple_shiftable_demand.jl")
-include("model/tariffs/interconnection_rules.jl")
+include("model/mechanisms/tariff_interconnection_rules.jl")
 
 # Include the simulation architecture
 include("simulate/simulate.jl")
-include("simulate/simulate_by_day.jl")
-include("simulate/simulate_by_month.jl")
-include("simulate/simulate_by_year.jl")
+include("simulate/support/create_sets.jl")
+include("simulate/optimization_horizons/simulate_by_day.jl")
+include("simulate/optimization_horizons/simulate_by_month.jl")
+include("simulate/optimization_horizons/simulate_by_year.jl")
 
 # Include the ability to access and postprocess the results
 include("postprocess/results.jl")
