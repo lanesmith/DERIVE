@@ -156,11 +156,16 @@ function build_optimization_model(
     end
 
     # Define demand-related constraints
-    define_maximum_demand_during_periods_constraint!(m, sets)
+    if !isnothing(sets.demand_prices)
+        define_maximum_demand_during_periods_constraint!(m, sets)
+        if scenario.optimization_horizon == "DAY"
+            define_monthly_maximum_demand_under_daily_optimization_constraint!(m, sets)
+        end
+    end
     define_net_demand_nonexport_constraint!(m, sets)
 
     # Define the non-import constraint for BES, if enabled and applicable
-    if storage.nonimport & storage.enabled
+    if storage.enabled & storage.nonimport
         define_bes_nonimport_constraint!(m, solar, sets)
     end
 

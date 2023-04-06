@@ -165,6 +165,8 @@ Base.@kwdef struct Sets
     energy_prices::Union{Vector{Float64},Nothing}
     demand_prices::Union{Vector{Float64},Nothing}
     demand_mask::Union{Dict,Nothing}
+    demand_charge_label_to_id::Union{Dict,Nothing}
+    previous_monthly_max_demand::Union{Vector{Float64},Nothing}
     nem_prices::Union{Vector{Float64},Nothing}
     bes_initial_soc::Union{Float64,Nothing}
     num_time_steps::Int64

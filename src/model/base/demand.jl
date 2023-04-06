@@ -9,7 +9,9 @@ updated in other functions to include the contributions of different included as
 """
 function define_demand_variables!(m::JuMP.Model, tariff::Tariff, sets::Sets)
     # Set the maximum net demand during different periods variables
-    JuMP.@variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
+    if !isnothing(sets.demand_prices)
+        JuMP.@variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
+    end
 
     # Create expression for net demand; update according to program/resource participation
     JuMP.@expression(m, d_net[t in 1:(sets.num_time_steps)], JuMP.AffExpr(sets.demand[t]))
@@ -37,7 +39,7 @@ function define_maximum_demand_during_periods_constraint!(m::JuMP.Model, sets::S
             p in 1:(sets.num_demand_charge_periods),
             t in 1:(sets.num_time_steps),
         ],
-        sets.demand_mask[p][t] * m[:d_net][t] <= m[:d_max][p]
+        m[:d_max][p] >= sets.demand_mask[p][t] * m[:d_net][t]
     )
 end
 
@@ -54,5 +56,31 @@ function define_net_demand_nonexport_constraint!(m::JuMP.Model, sets::Sets)
         m,
         net_demand_nonexport_constraint[t in 1:(sets.num_time_steps)],
         m[:d_net][t] >= 0
+    )
+end
+
+"""
+    define_monthly_maximum_demand_under_daily_optimization_constraint!(
+        m::JuMP.Model,
+        sets::Sets,
+    )
+
+Linear inequality constraint applied only to scenarios in which the optimization horizon is 
+equal to one day. This constraint ensures that the decision variables that describe monthly  
+maximum demand values in the current optimization problem consider the corresponding 
+monthly maximum demand values that were observed from the previous optimization problem 
+(i.e., the previous day in the month). If considered in the scneario, daily maximum demand 
+values from the previous optimization problem are set equal to zero (i.e., the maximum 
+demand values from the previous day do not matter when computing daily maximum demand).
+"""
+function define_monthly_maximum_demand_under_daily_optimization_constraint!(
+    m::JuMP.Model,
+    sets::Sets,
+)
+    # Ensure that current monthly maximum demand considers previous monthly maximum demand
+    JuMP.@constraint(
+        m,
+        monthly_maximum_demand_under_daily_optimization_constraint[p in 1:(sets.num_demand_charge_periods)],
+        m[:d_max][p] >= sets.previous_monthly_max_demand[p]
     )
 end
