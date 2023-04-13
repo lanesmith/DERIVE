@@ -31,13 +31,13 @@ include("model/mechanisms/tariff_interconnection_rules.jl")
 
 # Include the simulation architecture
 include("simulate/simulate.jl")
-include("simulate/support/create_sets.jl")
+include("simulate/tools/create_sets.jl")
 include("simulate/optimization_horizons/simulate_by_day.jl")
 include("simulate/optimization_horizons/simulate_by_month.jl")
 include("simulate/optimization_horizons/simulate_by_year.jl")
 
 # Include the ability to access and postprocess the results
-include("postprocess/results.jl")
+include("postprocess/time_series_results.jl")
 
 # Include the ability to visualize data and other information
 include("visualize/header.jl")
