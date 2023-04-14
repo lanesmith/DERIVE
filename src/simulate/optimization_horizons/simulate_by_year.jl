@@ -9,7 +9,7 @@
         storage::Storage,
         time_series_results::DataFrames.DataFrame,
         output_filepath::Union{String,Nothing}=nothing,
-    )
+    )::DataFrames.DataFrame
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
 necessary results.
@@ -24,7 +24,7 @@ function simulate_by_year(
     storage::Storage,
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
-)
+)::DataFrames.DataFrame
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial

@@ -1,10 +1,18 @@
 """
-    initialize_time_series_results(tariff::Tariff, solar::Solar, storage::Storage)
+    initialize_time_series_results(
+        tariff::Tariff,
+        solar::Solar,
+        storage::Storage,
+    )::DataFrames.DataFrame
 
 Initialize the DataFrame of time-series results used in the simulation. Included columns 
 are based on participating technologies and mechanisms.
 """
-function initialize_time_series_results(tariff::Tariff, solar::Solar, storage::Storage)
+function initialize_time_series_results(
+    tariff::Tariff,
+    solar::Solar,
+    storage::Storage,
+)::DataFrames.DataFrame
     # Initialize the DataFrame of time-series results
     time_series_results = DataFrames.DataFrame(timestamp=Dates.DateTime[], demand=Float64[])
 
@@ -18,7 +26,7 @@ function initialize_time_series_results(tariff::Tariff, solar::Solar, storage::S
 
     # Add columns to time_series_results if battery energy storage (BES) is enabled
     if storage.enabled
-        time_series_results[!, :bes_state_of_charge]  = Float64[]
+        time_series_results[!, :bes_state_of_charge] = Float64[]
         time_series_results[!, :bes_charging] = Float64[]
         time_series_results[!, :bes_discharging_btm] = Float64[]
         if !storage.nonexport

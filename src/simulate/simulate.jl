@@ -36,7 +36,7 @@ end
         solar::Solar,
         storage::Storage,
         output_filepath::Union{String,Nothing}=nothing,
-    )
+    )::DataFrames.DataFrame
 
 Solve the specified optimization problem using one of the provided solution methods.
 """
@@ -49,7 +49,7 @@ function solve_problem(
     solar::Solar,
     storage::Storage,
     output_filepath::Union{String,Nothing}=nothing,
-)
+)::DataFrames.DataFrame
     # Initialize the results DateFrame
     time_series_results = initialize_time_series_results(tariff, solar, storage)
 

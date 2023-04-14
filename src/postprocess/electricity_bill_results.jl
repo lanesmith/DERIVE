@@ -5,7 +5,7 @@
         solar::Solar,
         storage::Storage,
         time_series_results::DataFrames.DataFrame,
-    )
+    )::Dict
 
 Calculates the total electricity bill using input data and results from the simulation. 
 Provides bill components in addition to the total electricity bill.
@@ -16,7 +16,7 @@ function calculate_electricity_bill(
     solar::Solar,
     storage::Storage,
     time_series_results::DataFrames.DataFrame,
-)
+)::Dict
     # Initialize the electricity bill results
     bill_results = Dict{String,Any}()
 
