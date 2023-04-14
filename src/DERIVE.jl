@@ -32,6 +32,7 @@ include("model/mechanisms/tariff_interconnection_rules.jl")
 # Include the simulation architecture
 include("simulate/simulate.jl")
 include("simulate/tools/create_sets.jl")
+include("simulate/tools/sensitivity_analysis.jl")
 include("simulate/optimization_horizons/simulate_by_day.jl")
 include("simulate/optimization_horizons/simulate_by_month.jl")
 include("simulate/optimization_horizons/simulate_by_year.jl")
