@@ -118,8 +118,7 @@ function create_sets(
                     # relative to the energy charge, for days that occur early in the month.
                     push!(
                         sets["demand_prices"],
-                        tariff.demand_prices[k] *
-                        (Dates.day(start_index) / Dates.daysinmonth(start_index)),
+                        tariff.demand_prices[k] / Dates.daysinmonth(start_index),
                     )
 
                     # Add the corresponding demand mask; no change is needed
