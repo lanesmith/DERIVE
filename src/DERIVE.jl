@@ -28,6 +28,7 @@ include("model/assets/solar_photovoltaics.jl")
 include("model/assets/battery_energy_storage.jl")
 include("model/assets/simple_shiftable_demand.jl")
 include("model/mechanisms/tariff_interconnection_rules.jl")
+include("model/mechanisms/tiered_rates.jl")
 
 # Include the simulation architecture
 include("simulate/simulate.jl")

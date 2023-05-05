@@ -158,38 +158,42 @@ function read_tariff(filepath::String)::Tariff
 
     # Try assigning the tiered energy rate information from the file
     if !all(x -> x == "missing", tariff_information[!, "energy_tiered_lower_bounds"])
-        tariff["energy_tiered_rates"] = Dict{String,Dict}()
+        tariff["energy_tiered_rates"] = Dict{Int64,Dict}()
         for s in filter(
             x -> x != "missing",
             unique(tariff_information[!, "energy_tiered_seasons"]),
         )
-            tariff["energy_tiered_rates"][s] = Dict{Int64,Any}()
             energy_tiered_seasons_ids =
                 findall(x -> x == s, tariff_information[!, "energy_tiered_seasons"])
-            for i in eachindex(energy_tiered_seasons_ids)
-                tariff["energy_tiered_rates"][s][i] = Dict{String,Any}()
-                if i == length(energy_tiered_seasons_ids)
-                    tariff["energy_tiered_rates"][s][i]["bounds"] = [
-                        tariff_information[
-                            energy_tiered_seasons_ids[i],
-                            "energy_tiered_lower_bounds",
-                        ],
-                        Inf,
-                    ]
-                else
-                    tariff["energy_tiered_rates"][s][i]["bounds"] = [
-                        tariff_information[
-                            energy_tiered_seasons_ids[i],
-                            "energy_tiered_lower_bounds",
-                        ],
-                        tariff_information[
-                            energy_tiered_seasons_ids[i + 1],
-                            "energy_tiered_lower_bounds",
-                        ],
+            for m in tariff["months_by_season"][s]
+                tariff["energy_tiered_rates"][m] = Dict{Int64,Any}()
+                for i in eachindex(energy_tiered_seasons_ids)
+                    tariff["energy_tiered_rates"][m][i] = Dict{String,Any}()
+                    if i == length(energy_tiered_seasons_ids)
+                        tariff["energy_tiered_rates"][m][i]["bounds"] = [
+                            tariff_information[
+                                energy_tiered_seasons_ids[i],
+                                "energy_tiered_lower_bounds",
+                            ],
+                            Inf,
+                        ]
+                    else
+                        tariff["energy_tiered_rates"][m][i]["bounds"] = [
+                            tariff_information[
+                                energy_tiered_seasons_ids[i],
+                                "energy_tiered_lower_bounds",
+                            ],
+                            tariff_information[
+                                energy_tiered_seasons_ids[i + 1],
+                                "energy_tiered_lower_bounds",
+                            ],
+                        ]
+                    end
+                    tariff["energy_tiered_rates"][m][i]["cost"] = tariff_information[
+                        energy_tiered_seasons_ids[i],
+                        "energy_tiered_adders",
                     ]
                 end
-                tariff["energy_tiered_rates"][s][i]["cost"] =
-                    tariff_information[energy_tiered_seasons_ids[i], "energy_tiered_adders"]
             end
         end
     end

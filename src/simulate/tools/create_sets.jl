@@ -28,11 +28,15 @@ function create_sets(
 )::Sets
     # Initialize the parameters dictionary
     sets = Dict{String,Any}(
+        "start_date" => start_date,
+        "end_date" => end_date,
         "demand" => nothing,
         "solar_capacity_factor_profile" => nothing,
         "shift_up_capacity" => nothing,
         "shift_down_capacity" => nothing,
         "energy_prices" => nothing,
+        "energy_tiered_rates" => nothing,
+        "num_energy_tiered_rates_tiers" => nothing,
         "demand_prices" => nothing,
         "demand_mask" => nothing,
         "demand_charge_label_to_id" => nothing,
@@ -99,6 +103,23 @@ function create_sets(
         !,
         "rates",
     ]
+
+    # Partition the energy tiered rate information accordingly
+    if !isnothing(tariff.energy_tiered_rates)
+        # Access the month(s) of the energy tiered rates that are needed, if enabled
+        sets["energy_tiered_rates"] = Dict{Int64,Any}()
+        tier_number = 1
+        for m = Dates.month(start_index):Dates.month(end_index)
+            for k in tariff.energy_tiered_rates[m]
+                sets["energy_tiered_rates"][tier_number] = tariff.energy_tiered_rates[m][k]
+                sets["energy_tiered_rates"][tier_number]["month"] = m
+                tier_number += 1
+            end
+        end
+
+        # Determine the total number of tiers, including across different months, if enabled
+        sets["num_energy_tiered_rates_tiers"] = length(sets["energy_tiered_rates"])
+    end
 
     # Set up demand prices, demand masks, demand charge label-ID map, and previous monthly 
     # maximum demands, if demand charges are considered
