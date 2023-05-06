@@ -165,8 +165,8 @@ Base.@kwdef struct Sets
     shift_up_capacity::Union{Vector{Float64},Nothing}
     shift_down_capacity::Union{Vector{Float64},Nothing}
     energy_prices::Union{Vector{Float64},Nothing}
-    energy_tiered_rates::Union{Dict,Nothing}
-    num_energy_tiered_rates_tiers::Union{Int64,Nothing}
+    tiered_energy_rates::Union{Dict,Nothing}
+    num_tiered_energy_rates_tiers::Union{Int64,Nothing}
     demand_prices::Union{Vector{Float64},Nothing}
     demand_mask::Union{Dict,Nothing}
     demand_charge_label_to_id::Union{Dict,Nothing}

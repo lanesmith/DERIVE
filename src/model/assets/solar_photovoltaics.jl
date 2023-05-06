@@ -110,3 +110,33 @@ function define_solar_pv_generation_upper_bound!(
         )
     end
 end
+
+"""
+    define_solar_pv_capital_cost_objective!(
+        m::JuMP.Model,
+        obj::JuMP.AffExpr,
+        solar::Solar,
+    )
+
+TBW
+"""
+function define_solar_pv_capital_cost_objective!(
+    m::JuMP.Model,
+    obj::JuMP.AffExpr,
+    solar::Solar,
+)
+    # Add the capital cost of building the determined PV system to the objective function
+    if isnothing(solar.pv_capital_cost)
+        throw(
+            ErrorException(
+                "No capital cost is specified for the generation capacity of " *
+                "solar PVs. Please try again.",
+            ),
+        )
+    else
+        JuMP.add_to_expression!(
+            obj,
+            solar.pv_capital_cost * m[:pv_capacity] / solar.lifespan,
+        )
+    end
+end

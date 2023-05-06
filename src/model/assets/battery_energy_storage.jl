@@ -421,3 +421,52 @@ function define_bes_soc_upper_bound!(
         )
     end
 end
+
+"""
+    define_bes_capital_cost_objective!(
+        m::JuMP.Model,
+        obj::JuMP.AffExpr,
+        storage::Storage,
+    )
+
+TBW
+"""
+function define_bes_capital_cost_objective!(
+    m::JuMP.Model,
+    obj::JuMP.AffExpr,
+    storage::Storage,
+)
+    # Add the capital cost associated with the power rating of building the determined 
+    # battery energy storage system to the objective function
+    if isnothing(storage.power_capacity_cost)
+        throw(
+            ErrorException(
+                "No capital cost is specified for the power capacity of battery " *
+                "energy storage. Please try again.",
+            ),
+        )
+    else
+        JuMP.add_to_expression!(
+            obj,
+            storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+        )
+    end
+
+    # Add the capital cost associated with the power rating of building the determined 
+    # battery energy storage system to the objective function
+    if isnothing(storage.duration)
+        if isnothing(storage.energy_capital_cost)
+            throw(
+                ErrorException(
+                    "No capital cost is specified for the energy capacity of " *
+                    "battery energy storage. Please try again.",
+                ),
+            )
+        else
+            JuMP.add_to_expression!(
+                obj,
+                storage.energy_capital_cost * m[:bes_energy_capacity] / storage.lifespan,
+            )
+        end
+    end
+end

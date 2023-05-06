@@ -28,70 +28,29 @@ function define_objective_function!(
     # Initialize an expression for the objective function
     JuMP.@expression(m, obj, AffExpr())
 
+    # Add in time-of-use energy charges
+    define_tou_energy_charge_objective!(m, obj, sets)
+
     # Add in demand charges, if applicable
     if !isnothing(sets.demand_prices)
-        JuMP.add_to_expression!(obj, sum(m[:d_max] .* sets.demand_prices))
+        define_demand_charge_objective!(m, obj, sets)
     end
-
-    # Add in time-of-use energy charges
-    JuMP.add_to_expression!(obj, sum(m[:d_net] .* sets.energy_prices))
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
-        JuMP.add_to_expression!(obj, -1 * sum(m[:p_exports] .* sets.nem_prices))
+        define_net_energy_metering_revenue_objective!(m, obj, sets)
     end
 
     # Add in capacity expansion model-specific charges and incentives
     if scenario.problem_type == "CEM"
         # Add in capital costs associated with solar photovoltaics (PVs), if applicable
         if solar.enabled
-            if isnothing(solar.pv_capital_cost)
-                throw(
-                    ErrorException(
-                        "No capital cost is specified for the generation capacity of " *
-                        "solar PVs. Please try again.",
-                    ),
-                )
-            else
-                JuMP.add_to_expression!(
-                    obj,
-                    solar.pv_capital_cost * m[:pv_capacity] / solar.lifespan,
-                )
-            end
+            define_solar_pv_capital_cost_objective!(m, obj, solar)
         end
 
         # Add in capital costs associated with battery energy storage (BES), if applicable
         if storage.enabled
-            if isnothing(storage.power_capacity_cost)
-                throw(
-                    ErrorException(
-                        "No capital cost is specified for the power capacity of battery " *
-                        "energy storage. Please try again.",
-                    ),
-                )
-            else
-                JuMP.add_to_expression!(
-                    obj,
-                    storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
-                )
-            end
-
-            if isnothing(storage.duration)
-                if isnothing(storage.energy_capital_cost)
-                    throw(
-                        ErrorException(
-                            "No capital cost is specified for the energy capacity of " *
-                            "battery energy storage. Please try again.",
-                        ),
-                    )
-                else
-                    JuMP.add_to_expression!(
-                        obj,
-                        storage.energy_capital_cost * m[:bes_energy_capacity] /
-                        storage.lifespan,
-                    )
-                end
-            end
+            define_bes_capital_cost_objective!(m, obj, storage)
         end
     end
 
