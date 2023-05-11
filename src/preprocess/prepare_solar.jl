@@ -1,11 +1,17 @@
 """
-    calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
+    calculate_total_irradiance_profile(
+        scenario::Scenario,
+        solar::Solar,
+    )::Vector{Float64}
 
 Calculates the irradiance as observed by the simulated solar photovoltaic (PV) system. 
 Irradiance is based on weather data and the position of the PV array. Equations are 
 obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by Masters.
 """
-function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
+function calculate_total_irradiance_profile(
+    scenario::Scenario,
+    solar::Solar,
+)::Vector{Float64}
     # Create array of day numbers that correspond with each time stamp
     n = Dates.dayofyear.(scenario.weather_data[!, "timestamp"])
 
@@ -158,7 +164,7 @@ end
         scenario::Scenario, 
         solar::Solar, 
         irradiance::Vector,
-    )
+    )::Matrix{Float64}
 
 Calculate the power generation profile for the specified PV system using the specified 
 weather data and a supported solution method. The power generation profile is intended to 
@@ -168,7 +174,7 @@ function calculate_solar_generation_profile(
     scenario::Scenario,
     solar::Solar,
     irradiance::Vector,
-)
+)::Matrix{Float64}
     # Initialize a dictionary to hold the constants needed for calculating the I-V curve
     constants = Dict{String,Any}()
 
@@ -221,7 +227,7 @@ end
         temperature::Vector, 
         constants::Dict, 
         num_iv_points::Int64=1000,
-    )
+    )::Tuple{Matrix{Float64},Matrix{Float64},Matrix{Float64}}
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
 the method outlined in De Soto et al., 'Improvement and validation of a model for 
@@ -237,7 +243,7 @@ function desoto_iv_curve_method(
     temperature::Vector,
     constants::Dict{String,Any},
     num_iv_points::Int64=1000,
-)
+)::Tuple{Matrix{Float64},Matrix{Float64},Matrix{Float64}}
     # Calculate the photo-induced current
     nom_ipv = solar.module_sc_current
     ipv =
@@ -397,14 +403,14 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
 end
 
 """
-    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
+    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)::Float64
 
 Solve the principal branch of the Lambert W function using Halley's method. Assume that 
 the input, z, is real and sufficiently greater than the branch point of -1/e. Equations 
 are obtained from Corless et. al, 'On the Lambert W Function,' Advances in Computational 
 Mathematics, 1996.
 """
-function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
+function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)::Float64
     # Check that the input, z, is sufficiently greater than the branch point
     if z < -1 / exp(1)
         throw(

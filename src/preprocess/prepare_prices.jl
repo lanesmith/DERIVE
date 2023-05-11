@@ -69,12 +69,18 @@ function create_energy_rate_profile(
 end
 
 """
-    create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
+    create_demand_rate_profile(
+        scenario::Scenario,
+        tariff::Tariff,
+    )::Tuple{Dict,DataFrames.DataFrame}
 
 Create the mask profiles and corresponding rate references that describe how consumers 
 are exposed to demand charges.
 """
-function create_demand_rate_profile(scenario::Scenario, tariff::Tariff)
+function create_demand_rate_profile(
+    scenario::Scenario,
+    tariff::Tariff,
+)::Tuple{Dict,DataFrames.DataFrame}
     # Initialize the demand mask
     mask = DataFrames.DataFrame(
         "timestamp" => collect(
@@ -359,7 +365,10 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
 end
 
 """
-    identify_weekends(timestamp::Union{Vector{Dates.Date},Dates.Date}, month_id::Int64)
+    identify_weekends(
+        timestamp::Union{Vector{Dates.Date},Dates.Date},
+        month_id::Int64
+    )::Bool
 
 Indicates whether a provided timestamp is a weekend day. Can consider a DataFrame of 
 timestamps (evaluated pointwise) or a single timestamp.
@@ -367,7 +376,7 @@ timestamps (evaluated pointwise) or a single timestamp.
 function identify_weekends(
     timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
-)
+)::Bool
     return (
         (Dates.dayofweek.(timestamp) .== Saturday) .|
         (Dates.dayofweek.(timestamp) .== Sunday)
@@ -375,7 +384,10 @@ function identify_weekends(
 end
 
 """
-    identify_holidays(timestamp::Union{Vector{Dates.Date},Dates.Date}, month_id::Int64)
+    identify_holidays(
+        timestamp::Union{Vector{Dates.Date},Dates.Date},
+        month_id::Int6
+    )::Bool
 
 Indicates whether a provided timestamp is one of the following holidays: New Years Day, 
 Presidents' Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving Day, 
@@ -385,7 +397,7 @@ timestamp.
 function identify_holidays(
     timestamp::Union{Vector{Dates.DateTime},Dates.Date},
     month_id::Int64,
-)
+)::Bool
     return (
         ((Dates.month.(timestamp) .== 1) .& (Dates.day.(timestamp) .== 1)) .|
         (
