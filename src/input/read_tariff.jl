@@ -216,8 +216,14 @@ function read_tariff(filepath::String)::Tariff
                 )
             end
         elseif tariff["nem_version"] == 3
-            # Check that values from an avoided cost calculator are provided under NEM 3.0
-            if isnothing(tariff["nem3_profile"])
+            # Try loading the values from an avoided cost calculator under NEM 3.0
+            try
+                tariff["nem3_profile"] = DataFrames.DataFrame(
+                    CSV.File(
+                        joinpath(filepath, "nem_data", tariff_parameters["nem3_file_name"]),
+                    ),
+                )
+            catch e
                 throw(
                     ErrorException(
                         "No profile of values from an avoided cost calculator, which is " *
