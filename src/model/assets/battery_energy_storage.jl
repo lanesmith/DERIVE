@@ -429,15 +429,19 @@ end
         storage::Storage,
     )
 
-TBW
+Adds the capital costs and fixed operation and maintenance (O&M) costs associated with 
+building battery energy storage to the objective function. Captial costs associated with 
+the power capacity of the battery energy storage are required. Capital costs associated 
+with the energy capacity of the battery energy storage are required if storage duration is 
+not provided. Including fixed O&M costs is not required.
 """
 function define_bes_capital_cost_objective!(
     m::JuMP.Model,
     obj::JuMP.AffExpr,
     storage::Storage,
 )
-    # Add the capital cost associated with the power rating of building the determined 
-    # battery energy storage system to the objective function
+    # Add the amortized capital cost associated with the power rating of building the 
+    # determined battery energy storage system to the objective function
     if isnothing(storage.power_capacity_cost)
         throw(
             ErrorException(
@@ -452,8 +456,8 @@ function define_bes_capital_cost_objective!(
         )
     end
 
-    # Add the capital cost associated with the power rating of building the determined 
-    # battery energy storage system to the objective function
+    # Add the amortized capital cost associated with the energy rating of building the 
+    # determined battery energy storage system to the objective function, if necessary
     if isnothing(storage.duration)
         if isnothing(storage.energy_capital_cost)
             throw(
@@ -468,5 +472,12 @@ function define_bes_capital_cost_objective!(
                 storage.energy_capital_cost * m[:bes_energy_capacity] / storage.lifespan,
             )
         end
+    end
+
+    # Add the annual fixed operation and maintenance (O&M) cost associated with building 
+    # the determined battery energy storage system to the objective function; assume there 
+    # are no variable O&M costs
+    if !isnothing(storage.fixed_om_cost)
+        JuMP.add_to_expression!(obj, storage.fixed_om_cost * m[:bes_power_capacity])
     end
 end

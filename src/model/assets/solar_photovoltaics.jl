@@ -99,14 +99,16 @@ function define_solar_pv_generation_upper_bound!(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] * m[:pv_capacity]
+            sets.solar_capacity_factor_profile[t] * m[:pv_capacity] * solar.inverter_eff
         )
     else
         JuMP.@constraint(
             m,
             pv_upper_bound[t in 1:(sets.num_time_steps)],
             m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] * solar.power_capacity
+            sets.solar_capacity_factor_profile[t] *
+            solar.power_capacity *
+            solar.inverter_eff
         )
     end
 end
@@ -118,15 +120,19 @@ end
         solar::Solar,
     )
 
-TBW
+Adds the capital costs and fixed operation and maintenance (O&M) costs associated with 
+building a solar photovoltaic (PV) system to the objective function. Captial costs 
+associated with the power capacity of the PV system are required. Including fixed O&M costs 
+is not required.
 """
 function define_solar_pv_capital_cost_objective!(
     m::JuMP.Model,
     obj::JuMP.AffExpr,
     solar::Solar,
 )
-    # Add the capital cost of building the determined PV system to the objective function
-    if isnothing(solar.pv_capital_cost)
+    # Add the amortized capital cost of building the determined PV system to the objective 
+    # function
+    if isnothing(solar.capital_cost)
         throw(
             ErrorException(
                 "No capital cost is specified for the generation capacity of " *
@@ -136,7 +142,13 @@ function define_solar_pv_capital_cost_objective!(
     else
         JuMP.add_to_expression!(
             obj,
-            solar.pv_capital_cost * m[:pv_capacity] / solar.lifespan,
+            solar.capital_cost * m[:pv_capacity] / solar.lifespan,
         )
+    end
+
+    # Add the annual fixed operation and maintenance (O&M) cost associated with building 
+    # the determined PV system to the objective function
+    if !isnothing(solar.fixed_om_cost)
+        JuMP.add_to_expression!(obj, solar.fixed_om_cost * m[:pv_capacity])
     end
 end

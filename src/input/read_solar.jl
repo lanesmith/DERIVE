@@ -23,14 +23,13 @@ function read_solar(filepath::String)::Solar
         "module_noct" => nothing,
         "module_number_of_cells" => nothing,
         "module_cell_material" => nothing,
-        "pv_capital_cost" => nothing,
+        "capital_cost" => nothing,
+        "fixed_om_cost" => nothing,
         "collector_azimuth" => nothing,
         "tilt_angle" => nothing,
         "ground_reflectance" => "default",
         "tracker" => "fixed",
-        "tracker_capital_cost" => nothing,
-        "inverter_eff" => nothing,
-        "inverter_capital_cost" => nothing,
+        "inverter_eff" => 1.0,
         "lifespan" => nothing,
     )
 

@@ -23,6 +23,7 @@ function read_storage(filepath::String)::Storage
         "nonimport" => false,
         "power_capital_cost" => nothing,
         "energy_capital_cost" => nothing,
+        "fixed_om_cost" => nothing,
         "lifespan" => nothing,
     )
 

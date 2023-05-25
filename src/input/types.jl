@@ -114,14 +114,13 @@ Base.@kwdef struct Solar
     module_noct::Union{Float64,Nothing}
     module_number_of_cells::Union{Int64,Nothing}
     module_cell_material::Union{String,Nothing}
-    pv_capital_cost::Union{Float64,Nothing}
+    capital_cost::Union{Float64,Nothing}
+    fixed_om_cost::Union{Float64,Nothing}
     collector_azimuth::Union{Float64,Nothing}
     tilt_angle::Union{Float64,Nothing}
     ground_reflectance::String
     tracker::String
-    tracker_capital_cost::Union{Float64,Nothing}
-    inverter_eff::Union{Float64,Nothing}
-    inverter_capital_cost::Union{Float64,Nothing}
+    inverter_eff::Float64
     lifespan::Union{Int64,Nothing}
 end
 
@@ -148,6 +147,7 @@ Base.@kwdef struct Storage
     nonimport::Bool
     power_capital_cost::Union{Float64,Nothing}
     energy_capital_cost::Union{Float64,Nothing}
+    fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
 end
 
