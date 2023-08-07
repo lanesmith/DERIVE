@@ -64,7 +64,7 @@ function define_tiered_energy_rates_objective!(m::JuMP.Model, obj::JuMP.AffExpr,
     JuMP.add_to_expression!(
         obj,
         sum(
-            m[:e_tier][n] * sets.tiered_energy_rates[n]["cost"] for
+            m[:e_tier][n] * sets.tiered_energy_rates[n]["price"] for
             n = 1:(sets.num_tiered_energy_rates_tiers)
         ),
     )

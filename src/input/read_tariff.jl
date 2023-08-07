@@ -189,7 +189,7 @@ function read_tariff(filepath::String)::Tariff
                             ],
                         ]
                     end
-                    tariff["energy_tiered_rates"][m][i]["cost"] = tariff_information[
+                    tariff["energy_tiered_rates"][m][i]["price"] = tariff_information[
                         energy_tiered_seasons_ids[i],
                         "energy_tiered_adders",
                     ]
