@@ -16,8 +16,7 @@ function read_storage(filepath::String)::Storage
         "soc_min" => 0.0,
         "soc_max" => 1.0,
         "soc_initial" => 0.5,
-        "charge_eff" => 1.0,
-        "discharge_eff" => 1.0,
+        "roundtrip_eff" => 1.0,
         "loss_rate" => 0.0,
         "nonexport" => true,
         "nonimport" => false,
@@ -25,6 +24,7 @@ function read_storage(filepath::String)::Storage
         "energy_capital_cost" => nothing,
         "fixed_om_cost" => nothing,
         "lifespan" => nothing,
+        "investment_tax_credit" => 0.3,
     )
 
     # Try loading the storage parameters
@@ -68,11 +68,26 @@ function read_storage(filepath::String)::Storage
             # If only duration is provided, set energy_capacity accordingly
             storage["energy_capacity"] = storage["duration"] * storage["power_capacity"]
         end
+    else
+        if isnothing(storage["energy_capacity"])
+            throw(
+                ErrorException(
+                    "Neither the energy_capacity nor the duration parameters have been " *
+                    "provided. Please try again.",
+                ),
+            )
+        end
     end
 
-    # Check the provided state-of-charge and efficiency parameters
-    for k in
-        ["soc_min", "soc_max", "soc_initial", "charge_eff", "discharge_eff", "loss_rate"]
+    # Check the provided state-of-charge, efficiency, and investment tax credit parameters
+    for k in [
+        "soc_min",
+        "soc_max",
+        "soc_initial",
+        "roundtrip_eff",
+        "loss_rate",
+        "investment_tax_credit",
+    ]
         if storage[k] > 1.0
             throw(
                 ErrorException(

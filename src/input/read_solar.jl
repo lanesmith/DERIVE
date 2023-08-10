@@ -31,6 +31,7 @@ function read_solar(filepath::String)::Solar
         "tracker" => "fixed",
         "inverter_eff" => 1.0,
         "lifespan" => nothing,
+        "investment_tax_credit" => 0.3,
     )
 
     # Try loading the solar parameters
@@ -105,6 +106,29 @@ function read_solar(filepath::String)::Solar
                 ErrorException(
                     "Solar is enabled, but not enough information is provided to build " *
                     "the capacity factor profile. Please try again.",
+                ),
+            )
+        end
+    end
+
+    # Check the provided efficiency and investment tax credit parameters
+    for k in ["inverter_eff", "investment_tax_credit"]
+        if solar[k] > 1.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is greater than 1. Please only use values between 0 and " *
+                    "1, inclusive.",
+                ),
+            )
+        elseif solar[k] < 0.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is less than 0. Please only use values between 0 and 1, " *
+                    "inclusive.",
                 ),
             )
         end

@@ -122,6 +122,7 @@ Base.@kwdef struct Solar
     tracker::String
     inverter_eff::Float64
     lifespan::Union{Int64,Nothing}
+    investment_tax_credit::Union{Float64,Nothing}
 end
 
 """
@@ -140,8 +141,7 @@ Base.@kwdef struct Storage
     soc_min::Float64
     soc_max::Float64
     soc_initial::Float64
-    charge_eff::Float64
-    discharge_eff::Float64
+    roundtrip_eff::Float64
     loss_rate::Float64
     nonexport::Bool
     nonimport::Bool
@@ -149,6 +149,7 @@ Base.@kwdef struct Storage
     energy_capital_cost::Union{Float64,Nothing}
     fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
+    investment_tax_credit::Union{Float64,Nothing}
 end
 
 """

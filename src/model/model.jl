@@ -46,11 +46,17 @@ function define_objective_function!(
         # Add in capital costs associated with solar photovoltaics (PVs), if applicable
         if solar.enabled
             define_solar_pv_capital_cost_objective!(m, obj, solar)
+
+            # Add in solar PV investment tax credit (ITC), if applicable
+            define_solar_investment_tax_credit!(m, obj, solar)
         end
 
         # Add in capital costs associated with battery energy storage (BES), if applicable
         if storage.enabled
             define_bes_capital_cost_objective!(m, obj, storage)
+
+            # Add in BES ITC, if applicable
+            define_storage_investment_tax_credit!(m, obj, storage)
         end
     end
 
