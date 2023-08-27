@@ -134,9 +134,10 @@ function create_sets(
                 if occursin("monthly", k) &
                    occursin("_" * string(Dates.month(start_index)) * "_", k)
                     # If the optimization horizon is one day, weight monthly demand charges 
-                    # according to the number of days that have already occurred in the 
-                    # month. This is done to limit the prevalence of the demand charge, 
-                    # relative to the energy charge, for days that occur early in the month.
+                    # according to the number of days total that occur in the month. This 
+                    # is done to limit the prevalence of the demand charge relative to the 
+                    # energy charge, which is evaluated daily instead of monthly under this 
+                    # optimization horizon.
                     push!(
                         sets["demand_prices"],
                         tariff.demand_prices[k] / Dates.daysinmonth(start_index),
