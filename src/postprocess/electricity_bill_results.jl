@@ -52,7 +52,7 @@ function calculate_electricity_bill(
     if tariff.nem_enabled
         # Calculate the net exports
         net_exports = zeros(length(net_demand))
-        if solar.enabled
+        if solar.enabled & !solar.nonexport
             net_exports += time_series_results[!, "pv_generation_export"]
         end
         if storage.enabled & !storage.nonexport

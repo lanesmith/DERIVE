@@ -114,6 +114,7 @@ Base.@kwdef struct Solar
     module_noct::Union{Float64,Nothing}
     module_number_of_cells::Union{Int64,Nothing}
     module_cell_material::Union{String,Nothing}
+    nonexport::Bool
     capital_cost::Union{Float64,Nothing}
     fixed_om_cost::Union{Float64,Nothing}
     collector_azimuth::Union{Float64,Nothing}

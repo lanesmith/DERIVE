@@ -24,7 +24,7 @@ function define_solar_photovoltaic_model!(
     JuMP.add_to_expression!.(m[:d_net], -1 .* m[:p_pv_btm])
 
     # Update the expression for total exports, if net energy metering is enabled
-    if tariff.nem_enabled
+    if tariff.nem_enabled & !solar.nonexport
         JuMP.add_to_expression!.(m[:p_exports], m[:p_pv_exp])
     end
 
@@ -58,7 +58,7 @@ function define_solar_pv_variables!(
     JuMP.@variable(m, p_pv_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the solar PV power generation variables for export use (e.g., for net metering)
-    if tariff.nem_enabled
+    if tariff.nem_enabled & !solar.nonexport
         JuMP.@variable(m, p_pv_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 

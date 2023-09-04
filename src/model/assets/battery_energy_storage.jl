@@ -18,7 +18,7 @@ function define_battery_energy_storage_model!(
     sets::Sets,
 )
     # Create variables related to battery energy storage (BES)
-    define_bes_variables!(m, scenario, storage, sets)
+    define_bes_variables!(m, scenario, tariff, storage, sets)
 
     # Update the expression for net demand
     JuMP.add_to_expression!.(m[:d_net], m[:p_cha])
@@ -56,6 +56,7 @@ variable are used to emulate the BES energy capacity.
 function define_bes_variables!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     storage::Storage,
     sets::Sets,
 )
@@ -64,7 +65,7 @@ function define_bes_variables!(
     JuMP.@variable(m, p_dis_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the BES discharge variables for export use (e.g., for net metering)
-    if !storage.nonexport
+    if tariff.nem_enabled & !storage.nonexport
         JuMP.@variable(m, p_dis_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 

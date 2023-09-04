@@ -23,6 +23,7 @@ function read_solar(filepath::String)::Solar
         "module_noct" => nothing,
         "module_number_of_cells" => nothing,
         "module_cell_material" => nothing,
+        "nonexport" => false,
         "capital_cost" => nothing,
         "fixed_om_cost" => nothing,
         "collector_azimuth" => nothing,
