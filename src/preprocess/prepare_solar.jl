@@ -106,19 +106,19 @@ function calculate_total_irradiance_profile(
 
     # Calculate the diffuse insolation on the collector
     if solar.tracker == "fixed"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
-        diffuse_insoltation =
+        diffuse_insolation =
             scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
-        diffuse_insoltation =
+        diffuse_insolation =
             scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     end
 
     # Define the ground reflectance coefficient
@@ -156,7 +156,7 @@ function calculate_total_irradiance_profile(
     end
 
     # Return the total irradiance on the collector
-    return beam_insolation .+ diffuse_insoltation .+ reflected_insolation
+    return beam_insolation .+ diffuse_insolation .+ reflected_insolation
 end
 
 """
