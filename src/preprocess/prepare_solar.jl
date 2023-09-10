@@ -309,7 +309,7 @@ function desoto_iv_curve_method(
         ) + (2 * (solar.module_rated_voltage / (a * nom_vt))) -
         (solar.module_rated_voltage^2 / (a^2 * nom_vt^2))
 
-    # Calculate the sreies and shunt resistances
+    # Calculate the series and shunt resistances
     rs = (x * a * nom_vt - solar.module_rated_voltage) / solar.module_rated_current
     nom_rp =
         (x * a * nom_vt) / (nom_ipv - solar.module_rated_current - nom_i0 * (exp(x) - 1))
@@ -326,13 +326,19 @@ function desoto_iv_curve_method(
             solar.module_voltage_temp_coeff * (temperature[j] - constants["nom_temp"])
         v[j, :] = collect(0:(voc / (num_iv_points - 1)):voc)
 
-        # Create a change of variable to solve for the output current explicitly
+        # Calculate the output current
         if (rp[j] == Inf) & (ipv[j] == 0)
+            # Create a change of variable to solve for the output current explicitly
             # Take the limit of θ[j, :] as rp[j] -> Inf
             θ[j, :] =
                 ((rs .* i0[j]) ./ (a .* vt[j])) .*
                 exp.((rs .* i0[j] .+ v[j, :]) ./ (a .* vt[j]))
+
+            # Calculate the output current
+            # Take the limit of i[j, :] as rp[j] -> Inf
+            i[j, :] = i0[j] .- ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
         else
+            # Create a change of variable to solve for the output current explicitly
             θ[j, :] =
                 (
                     rs .* rp[j] .* i0[j] .*
@@ -341,13 +347,8 @@ function desoto_iv_curve_method(
                         (a * vt[j] * (rs + rp[j])),
                     )
                 ) ./ ((rs + rp[j]) * a * vt[j])
-        end
 
-        # Calculate the output current
-        if (rp[j] == Inf) & (ipv[j] == 0)
-            # Take the limit of i[j, :] as rp[j] -> Inf
-            i[j, :] = i0[j] .- ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
-        else
+            # Calculate the output current
             i[j, :] =
                 ((rp[j] .* (ipv[j] + i0[j]) .- v[j, :]) ./ (rs + rp[j])) .-
                 ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
