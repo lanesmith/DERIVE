@@ -140,7 +140,6 @@ Base.@kwdef struct Storage
     energy_capacity::Union{Float64,Nothing}
     duration::Union{Float64,Nothing}
     maximum_power_capacity::Union{Float64,Nothing}
-    maximum_energy_capacity::Union{Float64,Nothing}
     soc_min::Float64
     soc_max::Float64
     soc_initial::Float64
@@ -149,7 +148,6 @@ Base.@kwdef struct Storage
     nonexport::Bool
     nonimport::Bool
     power_capital_cost::Union{Float64,Nothing}
-    energy_capital_cost::Union{Float64,Nothing}
     fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
     investment_tax_credit::Union{Float64,Nothing}
