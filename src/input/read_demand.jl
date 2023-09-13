@@ -13,6 +13,8 @@ function read_demand(filepath::String)::Demand
         "shift_down_capacity_profile" => nothing,
         "shift_percent" => nothing,
         "shift_duration" => nothing,
+        "shift_up_cost" => 0.0,
+        "shift_down_cost" => 0.0,
     )
 
     # Try loading the demand parameters
@@ -77,22 +79,33 @@ function read_demand(filepath::String)::Demand
 
     # Try loading the shiftable demand profile if shiftable demand is enabled
     if demand["simple_shift_enabled"] & isnothing(demand["shift_percent"])
-        for i in ("up", "down")
-            try
-                demand["shift_" * i * "_capacity_profile"] = DataFrames.DataFrame(
-                    CSV.File(joinpath(filepath, "shiftable_demand_" * i * "_profile.csv")),
-                )
-                println("......loading shiftable demand " * i * " profile")
-            catch e
-                println(
-                    "Shiftable demand " *
-                    i *
-                    " profile not found in " *
-                    filepath *
-                    ". Shiftable demand parameters will default to not allowing " *
-                    "shiftable demand to be considered.",
-                )
-                demand["simple_shift_enabled"] = false
+        if !isnothing(demand["shift_percent"])
+            for i in ("up", "down")
+                demand["shift_" * i * "_capacity_profile"] =
+                    deepcopy(demand["demand_profile"])
+                demand["shift_" * i * "_capacity_profile"][!, "demand"] .*=
+                    demand["shift_percent"]
+            end
+        else
+            for i in ("up", "down")
+                try
+                    demand["shift_" * i * "_capacity_profile"] = DataFrames.DataFrame(
+                        CSV.File(
+                            joinpath(filepath, "shiftable_demand_" * i * "_profile.csv"),
+                        ),
+                    )
+                    println("......loading shiftable demand " * i * " profile")
+                catch e
+                    println(
+                        "Shiftable demand " *
+                        i *
+                        " profile not found in " *
+                        filepath *
+                        ". Shiftable demand parameters will default to not allowing " *
+                        "shiftable demand to be considered.",
+                    )
+                    demand["simple_shift_enabled"] = false
+                end
             end
         end
     end

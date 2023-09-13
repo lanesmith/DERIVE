@@ -89,6 +89,8 @@ Base.@kwdef struct Demand
     shift_down_capacity_profile::Union{DataFrames.DataFrame,Nothing}
     shift_percent::Union{Float64,Nothing}
     shift_duration::Union{Int64,Nothing}
+    shift_up_cost::Float64
+    shift_down_cost::Float64
 end
 
 """
