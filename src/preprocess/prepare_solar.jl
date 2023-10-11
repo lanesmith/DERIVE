@@ -29,7 +29,9 @@ function calculate_total_irradiance_profile(
     )
 
     # Create array of minutes that correspond with each time stamp for each day
-    t = Dates.hour.(scenario.weather_data[!, "timestamp"]) .* 60
+    t =
+        60 .* Dates.hour.(scenario.weather_data[!, "timestamp"]) .+
+        Dates.minute.(scenario.weather_data[!, "timestamp"])
 
     # Convert clock time to solar time
     b = (360 / 364) .* (n .- 81)

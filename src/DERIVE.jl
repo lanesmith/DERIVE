@@ -18,6 +18,7 @@ include("input/read_solar.jl")
 include("input/read_storage.jl")
 
 # Include the ability to prepare input data
+include("preprocess/prepare_demand.jl")
 include("preprocess/prepare_prices.jl")
 include("preprocess/prepare_solar.jl")
 
@@ -28,8 +29,8 @@ include("model/assets/solar_photovoltaics.jl")
 include("model/assets/battery_energy_storage.jl")
 include("model/assets/simple_shiftable_demand.jl")
 include("model/mechanisms/time_of_use_rates.jl")
-include("model/mechanisms/tariff_interconnection_rules.jl")
 include("model/mechanisms/tiered_energy_rates.jl")
+include("model/mechanisms/tariff_interconnection_rules.jl")
 
 # Include the simulation architecture
 include("simulate/simulate.jl")

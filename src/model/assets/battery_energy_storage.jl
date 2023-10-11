@@ -116,8 +116,9 @@ function define_bes_soc_energy_conservation!(
                     (1 - storage.loss_rate) *
                     sets.bes_initial_soc *
                     storage.duration *
-                    m[:bes_power_capacity] + storage.roundtrip_eff * m[:p_cha][1] -
-                    m[:p_dis_btm][1]
+                    m[:bes_power_capacity] +
+                    (scenario.interval_length / 60) *
+                    (storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1])
                 )
             end
         else
@@ -126,7 +127,8 @@ function define_bes_soc_energy_conservation!(
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
                 (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
-                storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1]
+                (scenario.interval_length / 60) *
+                (storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1])
             )
         end
 
@@ -136,7 +138,8 @@ function define_bes_soc_energy_conservation!(
             bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
             m[:soc][t + 1] ==
             (1 - storage.loss_rate) * m[:soc][t] +
-            storage.roundtrip_eff * m[:p_cha][t + 1] - m[:p_dis_btm][t + 1]
+            (scenario.interval_length / 60) *
+            (storage.roundtrip_eff * m[:p_cha][t + 1] - m[:p_dis_btm][t + 1])
         )
     else
         # Set equality constraint to maintain BES state of charge for the first time step
@@ -151,8 +154,11 @@ function define_bes_soc_energy_conservation!(
                     (1 - storage.loss_rate) *
                     sets.bes_initial_soc *
                     storage.duration *
-                    m[:bes_power_capacity] + storage.roundtrip_eff * m[:p_cha][1] -
-                    (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                    m[:bes_power_capacity] +
+                    (scenario.interval_length / 60) * (
+                        storage.roundtrip_eff * m[:p_cha][1] -
+                        (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                    )
                 )
             end
         else
@@ -161,8 +167,10 @@ function define_bes_soc_energy_conservation!(
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
                 (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
-                storage.roundtrip_eff * m[:p_cha][1] -
-                (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                (scenario.interval_length / 60) * (
+                    storage.roundtrip_eff * m[:p_cha][1] -
+                    (m[:p_dis_btm][1] + m[:p_dis_exp][1])
+                )
             )
         end
 
@@ -172,8 +180,10 @@ function define_bes_soc_energy_conservation!(
             bes_soc_energy_conservation[t in 1:(sets.num_time_steps - 1)],
             m[:soc][t + 1] ==
             (1 - storage.loss_rate) * m[:soc][t] +
-            storage.roundtrip_eff * m[:p_cha][t + 1] -
-            (m[:p_dis_btm][t + 1] + m[:p_dis_exp][t + 1])
+            (scenario.interval_length / 60) * (
+                storage.roundtrip_eff * m[:p_cha][t + 1] -
+                (m[:p_dis_btm][t + 1] + m[:p_dis_exp][t + 1])
+            )
         )
     end
 end

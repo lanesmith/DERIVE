@@ -29,7 +29,7 @@ function define_objective_function!(
     JuMP.@expression(m, obj, AffExpr())
 
     # Add in time-of-use energy charges
-    define_tou_energy_charge_objective!(m, obj, sets)
+    define_tou_energy_charge_objective!(m, obj, scenario, sets)
 
     # Add in demand charges, if applicable
     if !isnothing(sets.demand_prices)
@@ -38,7 +38,7 @@ function define_objective_function!(
 
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
-        define_net_energy_metering_revenue_objective!(m, obj, sets)
+        define_net_energy_metering_revenue_objective!(m, obj, scenario, sets)
     end
 
     # Add in capacity expansion model-specific charges and incentives

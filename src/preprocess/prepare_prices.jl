@@ -7,17 +7,19 @@ function create_energy_rate_profile(
     scenario::Scenario,
     tariff::Tariff,
 )::DataFrames.DataFrame
-    # Create annual profile with hourly increments
+    # Create annual profile with specified time increments
     profile = DataFrames.DataFrame(
         "timestamp" => collect(
-            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                scenario.year,
-                12,
-                31,
-                23,
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+        ),
+        "rates" => zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
             ),
         ),
-        "rates" => zeros(Dates.daysinyear(scenario.year) * 24),
     )
 
     # Create inverse mapping of seasons to months
@@ -84,12 +86,9 @@ function create_demand_rate_profile(
     # Initialize the demand mask
     mask = DataFrames.DataFrame(
         "timestamp" => collect(
-            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                scenario.year,
-                12,
-                31,
-                23,
-            ),
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
         ),
     )
     rates = Dict{String,Float64}()

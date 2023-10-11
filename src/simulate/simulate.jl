@@ -16,6 +16,7 @@ function load_and_preprocess_data(input_filepath::String)
     println("All data is loaded!")
 
     # Perform extra preprocessing of input data, as necessary
+    demand = adjust_demand_profiles(scenario, demand)
     tariff = create_rate_profiles(scenario, tariff)
     if solar.enabled & isnothing(solar.capacity_factor_profile)
         solar = create_solar_capacity_factor_profile(scenario, solar)
@@ -36,7 +37,7 @@ end
         solar::Solar,
         storage::Storage,
         output_filepath::Union{String,Nothing}=nothing,
-    )::DataFrames.DataFrame
+    )::Dict
 
 Solve the specified optimization problem using one of the provided solution methods.
 """
@@ -49,49 +50,95 @@ function solve_problem(
     solar::Solar,
     storage::Storage,
     output_filepath::Union{String,Nothing}=nothing,
-)::DataFrames.DataFrame
-    # Initialize the results DateFrame
-    time_series_results = initialize_time_series_results(tariff, solar, storage)
+)::Dict
+    # Initialize results Dict; holds time-series results, investment results (if applicable)
+    results = Dict{String,Union{DataFrames.DataFrame,Dict}}()
 
-    # Perform the simulation, depending on the optimization horizon
-    if scenario.optimization_horizon == "DAY"
-        time_series_results = simulate_by_day(
-            scenario,
-            tariff,
-            market,
-            incentives,
-            demand,
-            solar,
-            storage,
-            time_series_results,
-            output_filepath,
-        )
-    elseif scenario.optimization_horizon == "MONTH"
-        time_series_results = simulate_by_month(
-            scenario,
-            tariff,
-            market,
-            incentives,
-            demand,
-            solar,
-            storage,
-            time_series_results,
-            output_filepath,
-        )
-    elseif scenario.optimization_horizon == "YEAR"
-        time_series_results = simulate_by_year(
-            scenario,
-            tariff,
-            market,
-            incentives,
-            demand,
-            solar,
-            storage,
-            time_series_results,
-            output_filepath,
+    # Initialize the time-series results DataFrame
+    results["time-series"] = initialize_time_series_results(tariff, solar, storage)
+
+    # Perform the simulation, depending on problem type and optimization horizon
+    if (scenario.problem_type == "PCM") &
+       (scenario.optimization_horizon in ["DAY", "MONTH", "YEAR"])
+        if scenario.optimization_horizon == "DAY"
+            results["time-series"] = simulate_by_day(
+                scenario,
+                tariff,
+                market,
+                incentives,
+                demand,
+                solar,
+                storage,
+                results["time-series"],
+                output_filepath,
+            )
+        elseif scenario.optimization_horizon == "MONTH"
+            results["time-series"] = simulate_by_month(
+                scenario,
+                tariff,
+                market,
+                incentives,
+                demand,
+                solar,
+                storage,
+                results["time-series"],
+                output_filepath,
+            )
+        elseif scenario.optimization_horizon == "YEAR"
+            results["time-series"], _ = simulate_by_year(
+                scenario,
+                tariff,
+                market,
+                incentives,
+                demand,
+                solar,
+                storage,
+                results["time-series"],
+                output_filepath,
+            )
+        end
+
+        # Return the time-series results
+        return results
+    elseif (scenario.problem_type == "CEM") &
+           (scenario.optimization_horizon in ["YEAR", "MULTIPLE_YEARS"])
+        if scenario.optimization_horizon == "YEAR"
+            results["time-series"], results["investment"] = simulate_by_year(
+                scenario,
+                tariff,
+                market,
+                incentives,
+                demand,
+                solar,
+                storage,
+                results["time-series"],
+                output_filepath,
+            )
+        elseif scenario.optimization_horizon == "MULTIPLE_YEARS"
+            results["time-series"], results["investment"] = simulate_over_multiple_years(
+                scenario,
+                tariff,
+                market,
+                incentives,
+                demand,
+                solar,
+                storage,
+                results["time-series"],
+                output_filepath,
+            )
+        end
+
+        # Return the time-series results and investment results
+        return results
+    else
+        throw(
+            ErrorException(
+                "An optimization horizon of one " *
+                lowercase(scnenario.optimization_horizon) *
+                " is not supported for " *
+                scenario.problem_type *
+                " problems. Please try again.",
+            ),
         )
     end
-
-    # Return the time-series results
-    return time_series_results
 end

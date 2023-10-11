@@ -10,7 +10,11 @@ function define_tiered_energy_rates_variables!(m::JuMP.Model, sets::Sets)
 end
 
 """
-    define_tiered_energy_rates_tier_constraints!(m::JuMP.Model, sets::Sets)
+    define_tiered_energy_rates_tier_constraints!(
+        m::JuMP.Model,
+        scenario::Scenario,
+        sets::Sets,
+    )
 
 Linear inequality constraint and linear equality constraint for the tiered energy rates. 
 The inequality constraints place an upper bound on the variables that correspond to the 
@@ -19,7 +23,11 @@ the difference between the upper and lower bounds of the different tiers. The eq
 constraints ensure that monthly consumption for each tier equals the total monthly net 
 demand.
 """
-function define_tiered_energy_rates_tier_constraints!(m::JuMP.Model, sets::Sets)
+function define_tiered_energy_rates_tier_constraints!(
+    m::JuMP.Model,
+    scenario::Scenario,
+    sets::Sets,
+)
     # Set the upper bounds for the tiers
     JuMP.@constraint(
         m,
@@ -39,7 +47,8 @@ function define_tiered_energy_rates_tier_constraints!(m::JuMP.Model, sets::Sets)
         sum(
             (sets.tiered_energy_rates[n]["month"] == (μ + Dates.month(start_date) - 1)) ?
             m[:e_tier][n] : 0 for n = 1:(sets.num_tiered_energy_rates_tiers)
-        ) == sum(
+        ) ==
+        (scenario.interval_length / 60) * sum(
             m[:d_net][t] for t =
                 ((Dates.dayofyear(sets.start_date) - 1) * 24 + 1):(Dates.dayofyear(
                     sets.end_date,

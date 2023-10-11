@@ -7,7 +7,7 @@ function read_scenario(filepath::String)::Scenario
     # Initialize scenario struct
     scenario = Dict{String,Any}(
         "problem_type" => "",
-        "interval_length" => "hour",
+        "interval_length" => "1hour",
         "optimization_horizon" => "month",
         "optimization_solver" => "Gurobi",
         "weather_data" => nothing,
@@ -57,6 +57,62 @@ function read_scenario(filepath::String)::Scenario
         throw(
             ErrorException(
                 "Scenario parameters not found in " * filepath * ". Please try again.",
+            ),
+        )
+    end
+
+    # Check the problem type
+    if lowercase(scenario["problem_type"]) in ["production_cost", "pcm"]
+        scenario["problem_type"] = "PCM"
+    elseif lowercase(scenario["problem_type"]) in ["capacity_expansion", "cem"]
+        scenario["problem_type"] = "CEM"
+    else
+        throw(
+            ErrorException(
+                "The problem type must be either production_cost or " *
+                "capacity_expansion. Please try again.",
+            ),
+        )
+    end
+
+    # Check the interval length
+    if scenario["interval_length"] == "15minutes"
+        scenario["interval_length"] = 15
+    elseif scenario["interval_length"] == "30minutes"
+        scenario["interval_length"] = 30
+    elseif scenario["interval_length"] == "1hour"
+        scenario["interval_length"] = 60
+    else
+        throw(
+            ErrorException(
+                "Only interval lengths of 15minutes, 30minutes, and 1hour are supported " *
+                "at this time. Please try again.",
+            ),
+        )
+    end
+
+    # Check the optimization horizon
+    if lowercase(scenario["optimization_horizon"]) in
+       ["day", "month", "year", "multiple_years"]
+        scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
+    else
+        throw(
+            ErrorException(
+                "The optimization horizon must be either a day, month, or year. Please " *
+                "try again.",
+            ),
+        )
+    end
+
+    # Check the optimization solver
+    if lowercase(scenario["optimization_solver"]) in ["glpk", "gurobi", "highs"]
+        scenario["optimization_solver"] = uppercase(scenario["optimization_solver"])
+    else
+        throw(
+            ErrorException(
+                "DERIVE does not support " *
+                scenario["optimization_solver"] *
+                " as a solver. Please try again.",
             ),
         )
     end
@@ -177,9 +233,18 @@ function read_scenario(filepath::String)::Scenario
                 "DHI" => parse.(Float64, weather_data[!, "DHI"]),
                 "GHI" => parse.(Float64, weather_data[!, "GHI"]),
                 "Temperature" => parse.(Float64, weather_data[!, "Temperature"]),
-                "Wind Speed" => parse.(Float64, weather_data[!, "Wind Speed"]),
                 after=true,
             )
+
+            # Check the length of the weather data profile and adjust if needed
+            if size(scenario["weather_data"], 1) >
+               (Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"])
+                scenario["weather_data"] = reduce_weather_data_profile(scenario)
+            elseif size(scenario["weather_data"], 1) < (
+                Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"]
+            )
+                scenario["weather_data"] = expand_weather_data_profile(scenario)
+            end
         catch e
             throw(
                 ErrorException(
@@ -196,57 +261,6 @@ function read_scenario(filepath::String)::Scenario
         )
     end
 
-    # Check the problem type
-    if lowercase(scenario["problem_type"]) in ["production_cost", "pcm"]
-        scenario["problem_type"] = "PCM"
-    elseif lowercase(scenario["problem_type"]) in ["capacity_expansion", "cem"]
-        scenario["problem_type"] = "CEM"
-    else
-        throw(
-            ErrorException(
-                "The problem type must be either production_cost or " *
-                "capacity_expansion. Please try again.",
-            ),
-        )
-    end
-
-    # Check the interval length
-    if lowercase(scenario["interval_length"]) in ["hour"]
-        scenario["interval_length"] = uppercase(scenario["interval_length"])
-    else
-        throw(
-            ErrorException(
-                "Only interval lengths of one hour are supported at this time. Please " *
-                "try again.",
-            ),
-        )
-    end
-
-    # Check the optimization horizon
-    if lowercase(scenario["optimization_horizon"]) in ["day", "month", "year"]
-        scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
-    else
-        throw(
-            ErrorException(
-                "The optimization horizon must be either a day, month, or year. Please " *
-                "try again.",
-            ),
-        )
-    end
-
-    # Check the optimization solver
-    if lowercase(scenario["optimization_solver"]) in ["glpk", "gurobi", "highs"]
-        scenario["optimization_solver"] = uppercase(scenario["optimization_solver"])
-    else
-        throw(
-            ErrorException(
-                "DERIVE does not support " *
-                scenario["optimization_solver"] *
-                " as a solver. Please try again.",
-            ),
-        )
-    end
-
     # Convert Dict to NamedTuple
     scenario = (; (Symbol(k) => v for (k, v) in scenario)...)
 
@@ -254,4 +268,172 @@ function read_scenario(filepath::String)::Scenario
     scenario = Scenario(; scenario...)
 
     return scenario
+end
+
+"""
+    reduce_weather_data_profile(scenario::Dict)::DataFrames.DataFrame
+
+Reduces the size of the weather data profile by averaging between the time steps that will 
+be subsumed into a single time step.
+"""
+function reduce_weather_data_profile(scenario::Dict)::DataFrames.DataFrame
+    # Calculate the time step differential
+    time_step_diff = floor(
+        Int64,
+        (Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"]) /
+        size(scenario["weather_data"], 1),
+    )
+
+    # Reduce the size of the provided profile according to the time step differential
+    if time_step_diff in [2, 4]
+        # Isolate the DataFrame with the original weather data
+        original_weather_data = deepcopy(scenario["weather_data"])[
+            !,
+            filter(x -> x != "timestamp", names(scenario["weather_data"])),
+        ]
+
+        # Preallocate profile values with scenario-specified time steps
+        weather_data_profile = zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"],
+            ),
+            size(original_weather_data, 2),
+        )
+
+        # Reduce the provided profile by averaging amongst the proper time steps
+        for i in axes(weather_data_profile)[1]
+            weather_data_profile[i, :] .=
+                sum.(
+                    eachcol(
+                        original_weather_data[
+                            ((i - 1) * time_step_diff + 1):(i * time_step_diff),
+                            :,
+                        ],
+                    )
+                ) ./ time_step_diff
+        end
+
+        # Construct the weather data DataFrame
+        weather_data_df = DataFrames.DataFrame(
+            "timestamp" => collect(
+                Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                    scenario.interval_length,
+                ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+            ),
+        )
+        for c in eachindex(names(original_weather_data))
+            insertcols!(
+                weather_data_df,
+                names(original_weather_data)[c] => weather_data_profile[:, c],
+            )
+        end
+
+        # Return the updated weather data DataFrame
+        return weather_data_df
+    else
+        throw(
+            ErrorException(
+                "The time step differential is invalid. Please check the weather data " *
+                "profile and try again.",
+            ),
+        )
+    end
+end
+
+"""
+    expand_weather_data_profile(scenario::Dict)::DataFrames.DataFrame
+
+Expands the size of the weatrher data profile by using linear interpolation between the 
+existing time steps.
+"""
+function expand_weather_data_profile(scenario::Dict)::DataFrames.DataFrame
+    # Calculate the time step differential
+    time_step_diff = floor(
+        Int64,
+        (Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"]) /
+        size(scenario["weather_data"], 1),
+    )
+
+    # Expand the size of the provided profile according to the time step differential
+    if time_step_diff in [2, 4]
+        # Isolate the DataFrame with the original weather data
+        original_weather_data = Matrix(
+            deepcopy(scenario["weather_data"])[
+                !,
+                filter(x -> x != "timestamp", names(scenario["weather_data"])),
+            ],
+        )
+
+        # Preallocate profile values with scenario-specified time steps
+        weather_data_profile = zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario["year"]) * 24 * 60 / scenario["interval_length"],
+            ),
+            size(original_weather_data, 2),
+        )
+
+        # Expand the provided profile by linearly interpolating between the proper time 
+        # steps
+        for i in axes(original_weather_data)[1]
+            if i == size(original_weather_data, 1)
+                weather_data_profile[
+                    ((i - 1) * time_step_diff + 1):(i * time_step_diff),
+                    :,
+                ] = transpose(
+                    reduce(
+                        hcat,
+                        [
+                            original_weather_data[i, :] .+
+                            (j / time_step_diff) .* (
+                                original_weather_data[1, :] .- original_weather_data[i, :]
+                            ) for j = 0:(time_step_diff - 1)
+                        ],
+                    ),
+                )
+            else
+                weather_data_profile[
+                    ((i - 1) * time_step_diff + 1):(i * time_step_diff),
+                    :,
+                ] = transpose(
+                    reduce(
+                        hcat,
+                        [
+                            original_weather_data[i, :] .+
+                            (j / time_step_diff) .* (
+                                original_weather_data[i + 1, :] .-
+                                original_weather_data[i, :]
+                            ) for j = 0:(time_step_diff - 1)
+                        ],
+                    ),
+                )
+            end
+        end
+
+        # Construct the weather data DataFrame
+        weather_data_df = DataFrames.DataFrame(
+            "timestamp" => collect(
+                Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                    scenario.interval_length,
+                ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+            ),
+        )
+        for c in eachindex(names(original_weather_data))
+            insertcols!(
+                weather_data_df,
+                names(original_weather_data)[c] => weather_data_profile[:, c],
+            )
+        end
+
+        # Return the updated weather data DataFrame
+        return weather_data_df
+    else
+        throw(
+            ErrorException(
+                "The time step differential is invalid. Please check the weather data " *
+                "profile and try again.",
+            ),
+        )
+    end
 end

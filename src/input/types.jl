@@ -5,7 +5,7 @@ A struct to hold information about the specific scenario under investigation.
 """
 Base.@kwdef struct Scenario
     problem_type::String
-    interval_length::String
+    interval_length::Int64
     optimization_horizon::String
     optimization_solver::String
     weather_data::Union{DataFrames.DataFrame,Nothing}
