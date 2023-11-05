@@ -42,6 +42,7 @@ include("simulate/optimization_horizons/simulate_by_year.jl")
 
 # Include the ability to access and postprocess the results
 include("postprocess/time_series_results.jl")
+include("postprocess/investment_cost_results.jl")
 include("postprocess/electricity_bill_results.jl")
 
 # Include the ability to visualize data and other information

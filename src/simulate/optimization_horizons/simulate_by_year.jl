@@ -9,7 +9,7 @@
         storage::Storage,
         time_series_results::DataFrames.DataFrame,
         output_filepath::Union{String,Nothing}=nothing,
-    )::DataFrames.DataFrame
+    )::Tuple{DataFrames.DataFrame,Dict}
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
 necessary results.
@@ -24,7 +24,7 @@ function simulate_by_year(
     storage::Storage,
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
-)::DataFrames.DataFrame
+)::Tuple{DataFrames.DataFrame,Dict}
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial
@@ -66,11 +66,17 @@ function simulate_by_year(
     # Store the necessary time-series results
     store_time_series_results!(m, sets, time_series_results, start_date, end_date)
 
-    # Store the time-series results, if desired
+    # Save the time-series results, if desired
     if !isnothing(output_filepath)
         CSV(join(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
+    # Store the investment-cost results, if applicable
+    investment_cost_results = Dict{String,Any}()
+    if scenario.problem_type == "CEM"
+        store_investment_cost_results!(m, sets, investment_cost_results)
+    end
+
     # Return the results
-    return time_series_results
+    return time_series_results, investment_cost_results
 end

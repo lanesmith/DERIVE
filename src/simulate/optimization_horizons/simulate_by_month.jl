@@ -81,7 +81,7 @@ function simulate_by_month(
         end
     end
 
-    # Store the time-series results, if desired
+    # Save the time-series results, if desired
     if !isnothing(output_filepath)
         CSV(join(output_filepath, "time_series_results.csv"), time_series_results)
     end

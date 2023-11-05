@@ -97,7 +97,7 @@ function perform_sensitivity_analysis(
         end
 
         # Perform the simulation
-        time_series_results = solve_problem(
+        results = solve_problem(
             scenario,
             tariff,
             market,
@@ -109,7 +109,7 @@ function perform_sensitivity_analysis(
         )
 
         # Update the sensitivity analysis results to include the new timie-series results
-        sensitivity_analysis_results[scenario_name] = time_series_results
+        sensitivity_analysis_results[scenario_name] = results
     end
 
     # Return the results from the sensitivity analysis
