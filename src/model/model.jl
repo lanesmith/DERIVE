@@ -21,6 +21,7 @@ function define_objective_function!(
     scenario::Scenario,
     tariff::Tariff,
     incentives::Incentives,
+    demand::Demand,
     solar::Solar,
     storage::Storage,
     sets::Sets,
@@ -39,6 +40,11 @@ function define_objective_function!(
     # Add in revenue from net energy metering, if applicable
     if tariff.nem_enabled
         define_net_energy_metering_revenue_objective!(m, obj, scenario, sets)
+    end
+
+    # Add in variable cost associated with the simple shiftable demand model, if applicable
+    if demand.simple_shift_enabled
+        define_shiftable_demand_variable_cost_objective!(m, obj, demand)
     end
 
     # Add in capacity expansion model-specific charges and incentives
@@ -135,7 +141,16 @@ function build_optimization_model(
     end
 
     # Define the objective function of the optimization model
-    define_objective_function!(m, scenario, tariff, incentives, solar, storage, sets)
+    define_objective_function!(
+        m,
+        scenario,
+        tariff,
+        incentives,
+        demand,
+        solar,
+        storage,
+        sets,
+    )
 
     # Return the created JuMP model
     return m

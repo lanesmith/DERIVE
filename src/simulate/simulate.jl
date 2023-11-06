@@ -55,7 +55,7 @@ function solve_problem(
     results = Dict{String,Union{DataFrames.DataFrame,Dict}}()
 
     # Initialize the time-series results DataFrame
-    results["time-series"] = initialize_time_series_results(tariff, solar, storage)
+    results["time-series"] = initialize_time_series_results(tariff, demand, solar, storage)
 
     # Perform the simulation, depending on problem type and optimization horizon
     if (scenario.problem_type == "PCM") &

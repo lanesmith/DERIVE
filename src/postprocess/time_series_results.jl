@@ -10,6 +10,7 @@ are based on participating technologies and mechanisms.
 """
 function initialize_time_series_results(
     tariff::Tariff,
+    demand::Demand,
     solar::Solar,
     storage::Storage,
 )::DataFrames.DataFrame
@@ -32,6 +33,12 @@ function initialize_time_series_results(
         if tariff.nem_enabled & !storage.nonexport
             time_series_results[!, :bes_discharging_export] = Float64[]
         end
+    end
+
+    # Add columns to time_series_results if simple shiftable demand (SSD) is enabled
+    if demand.simple_shift_enabled
+        time_series_results[!, :ssd_up_deviations] = Float64[]
+        time_series_results[!, :ssd_down_deviations] = Float64[]
     end
 
     # Add columns to time_series_results for price information
@@ -95,6 +102,10 @@ function store_time_series_results!(
             temp_results[!, c] = JuMP.value.(m[:p_dis_btm])
         elseif c == "bes_discharging_export"
             temp_results[!, c] = JuMP.value.(m[:p_dis_exp])
+        elseif c == "ssd_up_deviations"
+            temp_results[!, c] = JuMP.value.(m[:d_dev_up])
+        elseif c == "ssd_down_deviations"
+            temp_results[!, c] = JuMP.value.(m[:d_dev_dn])
         elseif c == "energy_prices"
             temp_results[!, c] = sets.energy_prices
         elseif c == "export_prices"

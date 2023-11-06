@@ -13,6 +13,7 @@ Provides bill components in addition to the total electricity bill.
 function calculate_electricity_bill(
     scenario::Scenario,
     tariff::Tariff,
+    demand::Demand,
     solar::Solar,
     storage::Storage,
     time_series_results::DataFrames.DataFrame,
@@ -29,6 +30,9 @@ function calculate_electricity_bill(
         net_demand +=
             time_series_results[!, "bes_charging"] -
             time_series_results[!, "bes_discharging_btm"]
+    end
+    if demand.simple_shift_enabled
+        net_demand += time_series_results[!, "ssd_up_deviations"] - time_series_demand[!, "ssd_down_deviations"]
     end
 
     # Calculate the total energy charge
