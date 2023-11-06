@@ -22,8 +22,7 @@ function read_tariff(filepath::String)::Tariff
         "daily_demand_tou_rates" => nothing,
         "nem_enabled" => false,
         "nem_version" => 2,
-        "nem2_non_bypassable_charge" => nothing,
-        "nem3_profile" => nothing,
+        "nem_2_non_bypassable_charge" => nothing,
         "customer_charge" => Dict{String,Float64}("daily" => 0.0, "monthly" => 0.0),
         "energy_prices" => nothing,
         "demand_prices" => nothing,
@@ -207,7 +206,7 @@ function read_tariff(filepath::String)::Tariff
     if tariff["nem_enabled"]
         if tariff["nem_version"] == 2
             # Check that a non-bypassable charge is provided under NEM 2.0
-            if isnothing(tariff["nem2_non_bypassable_charge"])
+            if isnothing(tariff["nem_2_non_bypassable_charge"])
                 throw(
                     ErrorException(
                         "No non-bypassable charge, which is needed under NEM 2.0, was " *
@@ -216,18 +215,21 @@ function read_tariff(filepath::String)::Tariff
                 )
             end
         elseif tariff["nem_version"] == 3
-            # Try loading the values from an avoided cost calculator under NEM 3.0
-            try
-                tariff["nem3_profile"] = DataFrames.DataFrame(
-                    CSV.File(
-                        joinpath(filepath, "nem_data", tariff_parameters["nem3_file_name"]),
-                    ),
-                )
-            catch e
+            # Check that the directory of NEM 3.0 component prices exists
+            if isdir(joinpath(filepath, "nem_3_data"))
+                if length(readdir(joinpath(filepath, "nem_3_data"))) == 0
+                    throw(
+                        ErrorException(
+                            "There are no NEM 3.0 component price data files located in " *
+                            "the expected directory. Please try again.",
+                        ),
+                    )
+                end
+            else
                 throw(
                     ErrorException(
-                        "No profile of values from an avoided cost calculator, which is " *
-                        "needed under NEM 3.0, was provided. Please try again.",
+                        "There is no directory containing NEM 3.0 component price data. " *
+                        "Please try again.",
                     ),
                 )
             end

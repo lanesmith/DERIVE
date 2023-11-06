@@ -5,6 +5,7 @@ using DataFrames
 using Dates
 using Gurobi
 using JuMP
+using Statistics
 using TOML
 
 # Inlcude the ability to read input data

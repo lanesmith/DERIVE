@@ -298,17 +298,21 @@ function create_demand_rate_profile(
 end
 
 """
-    create_nem_rate_profile(
+    create_nem_price_profile(
+        scenario::Scenario,
         tariff::Tariff, 
         energy_price_profile::DataFrames.DataFrame,
+        filepath::String,
     )::DataFrames.DataFrame
 
 Create the profile that describes the rate at which consumers can sell excess solar 
 generation via a net energy metering (NEM) program.
 """
-function create_nem_rate_profile(
+function create_nem_price_profile(
+    scenario::Scenario,
     tariff::Tariff,
     energy_price_profile::DataFrames.DataFrame,
+    filepath::String,
 )::DataFrames.DataFrame
     # Create profile of NEM sell prices depending on the NEM version
     if tariff.nem_version == 1
@@ -317,10 +321,10 @@ function create_nem_rate_profile(
     elseif tariff.nem_version == 2
         # Under NEM 2.0, the sell rate is the energy rate minus the non-bypassable charge
         profile = deepcopy(energy_price_profile)
-        profile[!, "rates"] .-= tariff.nem2_non_bypassable_charge
+        profile[!, "rates"] .-= tariff.nem_2_non_bypassable_charge
     elseif tariff.nem_version == 3
         # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators
-        profile = tariff.nem3_profile
+        profile = calculate_nem_3_price_profile(scenario, filepath)
     end
 
     # Return the profile for NEM sell rates
@@ -328,12 +332,174 @@ function create_nem_rate_profile(
 end
 
 """
-    create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
+    calculate_nem_3_profiles(
+        scenario::Scenario,
+        filepath::String,
+        save::Bool=false,
+    )::DataFrames.DataFrame
+
+Calculate the net energy metering 3.0 (also referred to as the 'net billing tariff' by the 
+California Public Utilities Commission) profiles using export compensation data from an 
+avoided cost calculator.
+"""
+function calculate_nem_3_price_profile(
+    scenario::Scenario,
+    filepath::String,
+    save::Bool=false,
+)::DataFrames.DataFrame
+    # Initialize variables to hold avoided cost calculator (ACC) values and the number of 
+    # climate zones
+    acc_profile = zeros(8760)
+    acc_profile_cz = zeros(8760)
+    cz_counter = 0
+
+    # Add the ACC component prices together
+    for i in readdir(joinpath(filepath, "nem_3_data"))
+        if occursin("CZ", i)
+            # Read in the ACC distribution capacity price profile
+            acc_profile_cz .+=
+                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                    !,
+                    string(scenario.year),
+                ]
+
+            # Increment the number of climate zones
+            cz_counter += 1
+        else
+            # Read in the ACC component price profile
+            acc_profile .+=
+                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                    !,
+                    string(scenario.year),
+                ]
+        end
+    end
+
+    # Scale the summed distribution capacity profiles by the number of cliamte zones and 
+    # add to the other summed ACC component price profiles
+    acc_profile .+= (1 / cz_counter) .* acc_profile_cz
+
+    # Create annual profile for ACC prices with hourly time increments
+    acc_profile = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                scenario.year,
+                12,
+                31,
+                23,
+            ),
+        ),
+        "rates" => acc_profile ./ 1000,
+    )
+
+    # Create dictionary of average prices by month, hour, and weekday vs. weekend/holiday
+    average_prices = Dict{Int64,Any}(
+        m => Dict{String,Any}(
+            "weekday" => Dict{Int64,Any}(h => 0.0 for h = 0:23),
+            "weekend" => Dict{Int64,Any}(h => 0.0 for h = 0:23),
+        ) for m = 1:12
+    )
+
+    # Determine the average prices by month, hour, and weekday vs. weekend/holiday
+    for m = 1:12
+        for h = 0:23
+            average_prices[m]["weekday"][h] = Statistics.mean(
+                filter(
+                    "timestamp" =>
+                        x -> (
+                            (Dates.month(x) == m) &
+                            (Dates.hour(x) == h) &
+                            !identify_weekends(x, m) &
+                            !identify_holidays(x, m)
+                        ),
+                    acc_profile,
+                )[
+                    !,
+                    "rates",
+                ],
+            )
+            average_prices[m]["weekend"][h] = Statistics.mean(
+                filter(
+                    "timestamp" =>
+                        x -> (
+                            (Dates.month(x) == m) &
+                            (Dates.hour(x) == h) &
+                            (identify_weekends(x, m) | identify_holidays(x, m))
+                        ),
+                    acc_profile,
+                )[
+                    !,
+                    "rates",
+                ],
+            )
+        end
+    end
+
+    # Create annual profile with specified time increments
+    profile = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+        ),
+        "rates" => zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
+            ),
+        ),
+    )
+
+    # Assign average prices to the annual profile
+    for m = 1:12
+        for h = 0:23
+            # Set weekday values
+            profile[!, "rates"] .=
+                ifelse.(
+                    (Dates.month.(profile.timestamp) .== m) .&
+                    (Dates.hour.(profile.timestamp) .== h),
+                    average_prices[m]["weekday"][h],
+                    profile[!, "rates"],
+                )
+
+            # Set weekend values
+            profile[!, "rates"] .=
+                ifelse.(
+                    (Dates.month.(profile.timestamp) .== m) .&
+                    (Dates.hour.(profile.timestamp) .== h) .&
+                    DERIVE.identify_weekends.(profile.timestamp, m),
+                    average_prices[m]["weekend"][h],
+                    profile[!, "rates"],
+                )
+
+            # Set holiday values (same as weekend values)
+            profile[!, "rates"] .=
+                ifelse.(
+                    (Dates.month.(profile.timestamp) .== m) .&
+                    (Dates.hour.(profile.timestamp) .== h) .&
+                    DERIVE.identify_holidays.(profile.timestamp, m),
+                    average_prices[m]["weekend"][h],
+                    profile[!, "rates"],
+                )
+        end
+    end
+
+    # Save the profile as a .csv file, if specified
+    if save
+        CSV.write("nem_3_price_profile.csv", profile)
+    end
+
+    # Return the NEM 3.0 price profile
+    return profile
+end
+
+"""
+    create_rate_profiles(scenario::Scenario, tariff::Tariff, filepath::String)::Tariff
 
 Create the profiles that describe how consumers are exposed to demand charges, energy 
 charges, and net metering sell rates.
 """
-function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
+function create_rate_profiles(scenario::Scenario, tariff::Tariff, filepath::String)::Tariff
     # Initialize the updated Tariff struct object
     tariff_ = Dict{String,Any}(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
     println("...preparing price profiles")
@@ -351,7 +517,8 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff)::Tariff
 
     # Create the net energy metering (NEM) sell price profile
     if tariff.nem_enabled
-        tariff_["nem_prices"] = create_nem_rate_profile(tariff, tariff_["energy_prices"])
+        tariff_["nem_prices"] =
+            create_nem_price_profile(scenario, tariff, tariff_["energy_prices"], filepath)
     end
 
     # Convert Dict to NamedTuple
@@ -365,7 +532,7 @@ end
 
 """
     identify_weekends(
-        timestamp::Union{Vector{Dates.Date},Dates.Date},
+        timestamp::Union{Vector{Dates.Date},Dates.Date,Dates.DateTime},
         month_id::Int64
     )::Bool
 
@@ -373,7 +540,7 @@ Indicates whether a provided timestamp is a weekend day. Can consider a DataFram
 timestamps (evaluated pointwise) or a single timestamp.
 """
 function identify_weekends(
-    timestamp::Union{Vector{Dates.DateTime},Dates.Date},
+    timestamp::Union{Vector{Dates.DateTime},Dates.Date,Dates.DateTime},
     month_id::Int64,
 )::Bool
     return (
@@ -384,7 +551,7 @@ end
 
 """
     identify_holidays(
-        timestamp::Union{Vector{Dates.Date},Dates.Date},
+        timestamp::Union{Vector{Dates.Date},Dates.Date,Dates.DateTime},
         month_id::Int6
     )::Bool
 
@@ -394,7 +561,7 @@ and Christmas Day. Can consider a DataFrame of timestamps (evaluated pointwise) 
 timestamp.
 """
 function identify_holidays(
-    timestamp::Union{Vector{Dates.DateTime},Dates.Date},
+    timestamp::Union{Vector{Dates.DateTime},Dates.Date,Dates.DateTime},
     month_id::Int64,
 )::Bool
     return (
