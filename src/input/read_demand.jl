@@ -78,7 +78,7 @@ function read_demand(filepath::String)::Demand
     end
 
     # Try loading the shiftable demand profile if shiftable demand is enabled
-    if demand["simple_shift_enabled"] & isnothing(demand["shift_percent"])
+    if demand["simple_shift_enabled"]
         if !isnothing(demand["shift_percent"])
             for i in ("up", "down")
                 demand["shift_" * i * "_capacity_profile"] =
