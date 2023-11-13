@@ -15,7 +15,16 @@ function initialize_time_series_results(
     storage::Storage,
 )::DataFrames.DataFrame
     # Initialize the DataFrame of time-series results
-    time_series_results = DataFrames.DataFrame(timestamp=Dates.DateTime[], demand=Float64[])
+    time_series_results = DataFrames.DataFrame(
+        timestamp=Dates.DateTime[],
+        demand=Float64[],
+        net_demand=Float64[],
+    )
+
+    # Add columns to time_series_results if net energy metering (NEM) is enabled
+    if tariff.nem_enabled
+        time_series_results[!, :net_exports] = Float64[]
+    end
 
     # Add columns to time_series_results if solar photovoltaics (PVs) are enabled
     if solar.enabled
@@ -90,6 +99,10 @@ function store_time_series_results!(
             )
         elseif c == "demand"
             temp_results[!, c] = sets.demand
+        elseif c == "net_demand"
+            temp_results[!, c] = JuMP.value.(m[:d_net])
+        elseif c == "net_exports"
+            temp_results[!, c] = JuMP.value.(m[:p_exports])
         elseif c == "pv_generation_btm"
             temp_results[!, c] = JuMP.value.(m[:p_pv_btm])
         elseif c == "pv_generation_export"

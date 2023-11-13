@@ -21,24 +21,9 @@ function calculate_electricity_bill(
     # Initialize the electricity bill results
     bill_results = Dict{String,Any}()
 
-    # Calculate the net demand
-    net_demand = time_series_results[!, "demand"]
-    if solar.enabled
-        net_demand -= time_series_results[!, "pv_generation_btm"]
-    end
-    if storage.enabled
-        net_demand +=
-            time_series_results[!, "bes_charging"] -
-            time_series_results[!, "bes_discharging_btm"]
-    end
-    if demand.simple_shift_enabled
-        net_demand +=
-            time_series_results[!, "ssd_up_deviations"] -
-            time_series_results[!, "ssd_down_deviations"]
-    end
-
     # Calculate the total energy charge
-    bill_results["energy_charge"] = sum(net_demand .* tariff.energy_prices[!, "rates"])
+    bill_results["energy_charge"] =
+        sum(time_series_results[!, "net_demand"] .* tariff.energy_prices[!, "rates"])
 
     # Initialize the cost of the total electricity bill
     bill_results["total_charge"] = bill_results["energy_charge"]
@@ -46,8 +31,8 @@ function calculate_electricity_bill(
     # Calculate the total demand charge, if applicable
     if !isnothing(tariff.demand_prices)
         bill_results["demand_charge"] = sum(
-            v * maximum(tariff.demand_mask[!, k] .* net_demand) for
-            (k, v) in tariff.demand_prices
+            v * maximum(tariff.demand_mask[!, k] .* time_series_results[!, "net_demand"])
+            for (k, v) in tariff.demand_prices
         )
 
         # Update the cost of the total electricity bill
@@ -56,17 +41,9 @@ function calculate_electricity_bill(
 
     # Calculate the total revenue from net energy metering (NEM), if applicable
     if tariff.nem_enabled
-        # Calculate the net exports
-        net_exports = zeros(length(net_demand))
-        if solar.enabled & !solar.nonexport
-            net_exports += time_series_results[!, "pv_generation_export"]
-        end
-        if storage.enabled & !storage.nonexport
-            net_exports += time_series_results[!, "bes_discharging_export"]
-        end
-
         # Calculate NEM revenue
-        bill_results["nem_revenue"] = sum(net_exports .* tariff.nem_prices[!, "rates"])
+        bill_results["nem_revenue"] =
+            sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
 
         # Update the cost of the total electricity bill
         bill_results["total_charge"] -= bill_results["nem_revenue"]

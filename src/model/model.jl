@@ -27,7 +27,7 @@ function define_objective_function!(
     sets::Sets,
 )
     # Initialize an expression for the objective function
-    JuMP.@expression(m, obj, AffExpr())
+    JuMP.@expression(m, obj, JuMP.AffExpr())
 
     # Add in time-of-use energy charges
     define_tou_energy_charge_objective!(m, obj, scenario, sets)
