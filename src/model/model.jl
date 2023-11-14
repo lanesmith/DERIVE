@@ -123,7 +123,7 @@ function build_optimization_model(
 
     # Add the simplified shiftable demand (SSD) model, if enabled
     if demand.simple_shift_enabled
-        define_simple_shiftable_demand_model!(m, demand, sets)
+        define_simple_shiftable_demand_model!(m, scenario, demand, sets)
     end
 
     # Define demand-related constraints

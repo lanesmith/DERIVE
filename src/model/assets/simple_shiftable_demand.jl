@@ -1,10 +1,20 @@
 """
-    define_simple_shiftable_demand_model!(m::JuMP.Model, demand::Demand, sets::Sets)
+    define_simple_shiftable_demand_model!(
+        m::JuMP.Model,
+        scenario::Scenario,
+        demand::Demand,
+        sets::Sets,
+    )
 
 Sets the decision variables and constraints associated with the simple shiftable demand 
 (SSD) model.
 """
-function define_simple_shiftable_demand_model!(m::JuMP.Model, demand::Demand, sets::Sets)
+function define_simple_shiftable_demand_model!(
+    m::JuMP.Model,
+    scenario::Scenario,
+    demand::Demand,
+    sets::Sets,
+)
     # Create variables related to simple shiftable demand (SSD)
     define_ssd_variables!(m, sets)
 
@@ -15,7 +25,7 @@ function define_simple_shiftable_demand_model!(m::JuMP.Model, demand::Demand, se
     # Create constraints related to SSD
     define_ssd_upper_bounds!(m, sets)
     define_ssd_interval_balance!(m, sets)
-    define_ssd_rolling_balance!(m, demand, sets)
+    define_ssd_rolling_balance!(m, scenario, demand, sets)
 end
 
 """
@@ -68,18 +78,37 @@ function define_ssd_interval_balance!(m::JuMP.Model, sets::Sets)
 end
 
 """
-    define_ssd_rolling_balance!(m::JuMP.Model, demand::Demand, sets::Sets)
+    define_ssd_rolling_balance!(
+        m::JuMP.Model,
+        scenario::Scenario,
+        demand::Demand,
+        sets::Sets,
+    )
 
 Linear inequality constraint that ensures that all demand deviations that occur within 
 rolling windows of a user-defined length are balanced.
 """
-function define_ssd_rolling_balance!(m::JuMP.Model, demand::Demand, sets::Sets)
+function define_ssd_rolling_balance!(
+    m::JuMP.Model,
+    scenario::Scenario,
+    demand::Demand,
+    sets::Sets,
+)
     # Ensure demand deviations are balanced over the rolling windows of user-defined length
     JuMP.@constraint(
         m,
-        ssd_rolling_balance[k in 1:(sets.num_time_steps - demand.shift_duration + 1)],
-        sum(m[:d_dev_up][τ] - m[:d_dev_dn][τ] for τ = k:(demand.shift_duration + k - 1)) >=
-        0
+        ssd_rolling_balance[k in 1:floor(
+            Int64,
+            sets.num_time_steps - demand.shift_duration * (60 / scenario.interval_length) +
+            1,
+        )],
+        sum(
+            m[:d_dev_up][τ] - m[:d_dev_dn][τ] for τ =
+                k:floor(
+                    Int64,
+                    demand.shift_duration * (60 / scenario.interval_length) + k - 1,
+                )
+        ) >= 0
     )
 end
 
