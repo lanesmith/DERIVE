@@ -64,7 +64,7 @@ function simulate_by_year(
     JuMP.optimize!(m)
 
     # Store the necessary time-series results
-    store_time_series_results!(m, sets, time_series_results, start_date, end_date)
+    store_time_series_results!(m, scenario, sets, time_series_results, start_date, end_date)
 
     # Save the time-series results, if desired
     if !isnothing(output_filepath)

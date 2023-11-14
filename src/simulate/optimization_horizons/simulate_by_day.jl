@@ -81,7 +81,14 @@ function simulate_by_day(
             end
 
             # Store the necessary time-series results
-            store_time_series_results!(m, sets, time_series_results, start_date, end_date)
+            store_time_series_results!(
+                m,
+                scenario,
+                sets,
+                time_series_results,
+                start_date,
+                end_date,
+            )
 
             # Pass final state of charge (SOC) from this pass to the initial SOC of the next
             if storage.enabled

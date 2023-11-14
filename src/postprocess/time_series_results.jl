@@ -63,6 +63,7 @@ end
 """
     store_time_series_results!(
         m::JuMP.Model,
+        scenario::Scenario,
         sets::Sets,
         time_series_results::DataFrames.DateFrame,
         start_date::Dates.Date,
@@ -75,6 +76,7 @@ names present in the provided DataFrame.
 """
 function store_time_series_results!(
     m::JuMP.Model,
+    scenario::Scenario,
     sets::Sets,
     time_series_results::DataFrames.DataFrame,
     start_date::Dates.Date,
@@ -90,11 +92,13 @@ function store_time_series_results!(
                     Dates.month(start_date),
                     Dates.day(start_date),
                     0,
-                ):Dates.Hour(1):Dates.DateTime(
+                    0,
+                ):Dates.Minute(scenario.interval_length):Dates.DateTime(
                     Dates.year(end_date),
                     Dates.month(end_date),
                     Dates.day(end_date),
                     23,
+                    45,
                 ),
             )
         elseif c == "demand"

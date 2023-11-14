@@ -71,7 +71,14 @@ function simulate_by_month(
         end
 
         # Store the necessary time-series results
-        store_time_series_results!(m, sets, time_series_results, start_date, end_date)
+        store_time_series_results!(
+            m,
+            scenario,
+            sets,
+            time_series_results,
+            start_date,
+            end_date,
+        )
 
         # Pass final state of charge from this pass to initial state of charge of the next
         if storage.enabled
