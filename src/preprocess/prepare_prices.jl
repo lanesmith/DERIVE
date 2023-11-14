@@ -48,7 +48,7 @@ function create_energy_rate_profile(
             if tariff.weekday_weekend_split
                 profile[!, "rates"] .=
                     ifelse.(
-                        identify_weekends(profile.timestamp, m),
+                        identify_weekends.(profile.timestamp, m),
                         tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
                         profile[!, "rates"],
                     )
@@ -58,7 +58,7 @@ function create_energy_rate_profile(
             if tariff.holiday_split
                 profile[!, "rates"] .=
                     ifelse.(
-                        identify_holidays(profile.timestamp, m),
+                        identify_holidays.(profile.timestamp, m),
                         tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
                         profile[!, "rates"],
                     )
@@ -182,7 +182,7 @@ function create_demand_rate_profile(
                             ) * "_",
                         ] =
                             ifelse.(
-                                identify_weekends(mask.timestamp, m),
+                                identify_weekends.(mask.timestamp, m),
                                 0,
                                 mask[
                                     !,
@@ -202,7 +202,7 @@ function create_demand_rate_profile(
                             ) * "_",
                         ] =
                             ifelse.(
-                                identify_holidays(mask.timestamp, m),
+                                identify_holidays.(mask.timestamp, m),
                                 0,
                                 mask[
                                     !,
