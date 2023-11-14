@@ -2,10 +2,9 @@
     calculate_electricity_bill(
         scenario::Scenario,
         tariff::Tariff,
-        solar::Solar,
-        storage::Storage,
         time_series_results::DataFrames.DataFrame,
-    )::Dict
+        output_filepath::Union{String,Nothing}=nothing,
+    )::Dict{String,Any}
 
 Calculates the total electricity bill using input data and results from the simulation. 
 Provides bill components in addition to the total electricity bill.
@@ -13,11 +12,9 @@ Provides bill components in addition to the total electricity bill.
 function calculate_electricity_bill(
     scenario::Scenario,
     tariff::Tariff,
-    demand::Demand,
-    solar::Solar,
-    storage::Storage,
     time_series_results::DataFrames.DataFrame,
-)::Dict
+    output_filepath::Union{String,Nothing}=nothing,
+)::Dict{String,Any}
     # Initialize the electricity bill results
     bill_results = Dict{String,Any}()
 
@@ -62,6 +59,15 @@ function calculate_electricity_bill(
 
         # Update the cost of the total electricity bill
         bill_results["total_charge"] += bill_results["customer_charge"]
+    end
+
+    # Save the electricity bill results, if desired
+    if !isnothing(output_filepath)
+        CSV.write(
+            join(output_filepath, "electricity_bill_results.csv"),
+            bill_results;
+            header=["parameter", "value"],
+        )
     end
 
     # Return the electricity bill results

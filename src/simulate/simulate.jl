@@ -51,7 +51,8 @@ function solve_problem(
     storage::Storage,
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict
-    # Initialize results Dict; holds time-series results, investment results (if applicable)
+    # Initialize results Dict; holds time-series results, electricity bill results, and 
+    # investment results (if applicable)
     results = Dict{String,Union{DataFrames.DataFrame,Dict}}()
 
     # Initialize the time-series results DataFrame
@@ -97,9 +98,6 @@ function solve_problem(
                 output_filepath,
             )
         end
-
-        # Return the time-series results
-        return results
     elseif (scenario.problem_type == "CEM") &
            (scenario.optimization_horizon in ["YEAR", "MULTIPLE_YEARS"])
         if scenario.optimization_horizon == "YEAR"
@@ -127,9 +125,6 @@ function solve_problem(
                 output_filepath,
             )
         end
-
-        # Return the time-series results and investment results
-        return results
     else
         throw(
             ErrorException(
@@ -141,4 +136,16 @@ function solve_problem(
             ),
         )
     end
+
+    # Caluclate the electricity bill components and inlcude them in the results Dict
+    results["electricity_bill"] = calculate_electricity_bill(
+        scenario,
+        tariff,
+        results["time-series"],
+        output_filepath,
+    )
+
+    # Return the time-series results, electricity bill results, and investment results (if 
+    # applicable)
+    return results
 end

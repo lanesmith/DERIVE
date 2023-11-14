@@ -96,6 +96,15 @@ function perform_sensitivity_analysis(
             )
         end
 
+        # Create a directory to hold results, if desired
+        if !isnothing(output_filepath)
+            output_filepath = joinpath(
+                output_filepath,
+                sensitivity_variable * "_" * sensitivity_parameter * "_" * string(v),
+            )
+            mkpath(output_filepath)
+        end
+
         # Perform the simulation
         results = solve_problem(
             scenario,
