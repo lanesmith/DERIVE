@@ -56,7 +56,7 @@ function read_demand(filepath::String)::Demand
                     joinpath(
                         filepath,
                         "demand_data",
-                        demand_parameters[1, "demand_file_name"],
+                        demand_parameters[1, "demand_file_name"] * ".csv",
                     ),
                 ),
             )
