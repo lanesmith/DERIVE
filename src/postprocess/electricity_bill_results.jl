@@ -64,7 +64,7 @@ function calculate_electricity_bill(
     # Save the electricity bill results, if desired
     if !isnothing(output_filepath)
         CSV.write(
-            join(output_filepath, "electricity_bill_results.csv"),
+            joinpath(output_filepath, "electricity_bill_results.csv"),
             bill_results;
             header=["parameter", "value"],
         )

@@ -90,7 +90,7 @@ function simulate_by_month(
 
     # Save the time-series results, if desired
     if !isnothing(output_filepath)
-        CSV(join(output_filepath, "time_series_results.csv"), time_series_results)
+        CSV.write(joinpath(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
     # Return the results

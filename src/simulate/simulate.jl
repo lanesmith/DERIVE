@@ -37,7 +37,7 @@ end
         solar::Solar,
         storage::Storage,
         output_filepath::Union{String,Nothing}=nothing,
-    )::Dict
+    )::Dict{String,Union{DataFrames.DataFrame,Dict}}
 
 Solve the specified optimization problem using one of the provided solution methods.
 """
@@ -50,7 +50,7 @@ function solve_problem(
     solar::Solar,
     storage::Storage,
     output_filepath::Union{String,Nothing}=nothing,
-)::Dict
+)::Dict{String,Union{DataFrames.DataFrame,Dict}}
     # Initialize results Dict; holds time-series results, electricity bill results, and 
     # investment results (if applicable)
     results = Dict{String,Union{DataFrames.DataFrame,Dict}}()

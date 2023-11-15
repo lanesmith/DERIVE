@@ -98,11 +98,11 @@ function perform_sensitivity_analysis(
 
         # Create a directory to hold results, if desired
         if !isnothing(output_filepath)
-            output_filepath = joinpath(
+            output_filepath_ = joinpath(
                 output_filepath,
                 sensitivity_variable * "_" * sensitivity_parameter * "_" * string(v),
             )
-            mkpath(output_filepath)
+            mkpath(output_filepath_)
         end
 
         # Perform the simulation
@@ -114,7 +114,7 @@ function perform_sensitivity_analysis(
             demand,
             solar,
             storage,
-            output_filepath,
+            output_filepath_,
         )
 
         # Update the sensitivity analysis results to include the new timie-series results
