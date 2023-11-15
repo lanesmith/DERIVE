@@ -9,7 +9,6 @@ function read_storage(filepath::String)::Storage
     storage = Dict{String,Any}(
         "enabled" => false,
         "power_capacity" => nothing,
-        "energy_capacity" => nothing,
         "duration" => nothing,
         "maximum_power_capacity" => nothing,
         "soc_min" => 0.0,
@@ -55,26 +54,13 @@ function read_storage(filepath::String)::Storage
         )
     end
 
-    # Check if both the energy_capacity and duration parameters have been provided
-    if !isnothing(storage["duration"])
-        if !isnothing(storage["energy_capacity"])
-            @warn(
-                "Both the energy_capacity and duration parameters have been provided. " *
-                "Will default to using the energy_capacity parameter."
-            )
-        else
-            # If only duration is provided, set energy_capacity accordingly
-            storage["energy_capacity"] = storage["duration"] * storage["power_capacity"]
-        end
-    else
-        if isnothing(storage["energy_capacity"])
-            throw(
-                ErrorException(
-                    "Neither the energy_capacity nor the duration parameters have been " *
-                    "provided. Please try again.",
-                ),
-            )
-        end
+    # Check if the duration parameter has been provided
+    if isnothing(storage["duration"])
+        throw(
+            ErrorException(
+                "The storage duration parameter has not been provided. Please try again.",
+            ),
+        )
     end
 
     # Check the provided state-of-charge, efficiency, and investment tax credit parameters

@@ -136,7 +136,6 @@ A struct to hold information about the specifications of the battery energy stor
 Base.@kwdef struct Storage
     enabled::Bool
     power_capacity::Union{Float64,Nothing}
-    energy_capacity::Union{Float64,Nothing}
     duration::Union{Float64,Nothing}
     maximum_power_capacity::Union{Float64,Nothing}
     soc_min::Float64

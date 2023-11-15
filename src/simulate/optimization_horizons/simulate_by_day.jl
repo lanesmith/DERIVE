@@ -92,7 +92,8 @@ function simulate_by_day(
 
             # Pass final state of charge (SOC) from this pass to the initial SOC of the next
             if storage.enabled
-                bes_initial_soc = last(JuMP.value.(m[:soc])) / storage.energy_capacity
+                bes_initial_soc =
+                    last(JuMP.value.(m[:soc])) / (storage.duration * storage.power_capacity)
             else
                 bes_initial_soc = nothing
             end

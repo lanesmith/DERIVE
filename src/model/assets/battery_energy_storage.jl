@@ -106,27 +106,26 @@ function define_bes_soc_energy_conservation!(
     if storage.nonexport
         # Set equality constraint to maintain BES state of charge for the first time step
         if scenario.problem_type == "CEM"
-            if isnothing(storage.duration)
-                throw(ErrorException("Storage duration is not provided. Please try again."))
-            else
-                JuMP.@constraint(
-                    m,
-                    bes_soc_energy_conservation_initial,
-                    m[:soc][1] ==
-                    (1 - storage.loss_rate) *
-                    sets.bes_initial_soc *
-                    storage.duration *
-                    m[:bes_power_capacity] +
-                    (scenario.interval_length / 60) *
-                    (storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1])
-                )
-            end
+            JuMP.@constraint(
+                m,
+                bes_soc_energy_conservation_initial,
+                m[:soc][1] ==
+                (1 - storage.loss_rate) *
+                sets.bes_initial_soc *
+                storage.duration *
+                m[:bes_power_capacity] +
+                (scenario.interval_length / 60) *
+                (storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1])
+            )
         else
             JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
-                (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
+                (1 - storage.loss_rate) *
+                sets.bes_initial_soc *
+                storage.duration *
+                storage.power_capacity +
                 (scenario.interval_length / 60) *
                 (storage.roundtrip_eff * m[:p_cha][1] - m[:p_dis_btm][1])
             )
@@ -144,29 +143,28 @@ function define_bes_soc_energy_conservation!(
     else
         # Set equality constraint to maintain BES state of charge for the first time step
         if scenario.problem_type == "CEM"
-            if isnothing(storage.duration)
-                throw(ErrorException("Storage duration is not provided. Please try again."))
-            else
-                JuMP.@constraint(
-                    m,
-                    bes_soc_energy_conservation_initial,
-                    m[:soc][1] ==
-                    (1 - storage.loss_rate) *
-                    sets.bes_initial_soc *
-                    storage.duration *
-                    m[:bes_power_capacity] +
-                    (scenario.interval_length / 60) * (
-                        storage.roundtrip_eff * m[:p_cha][1] -
-                        (m[:p_dis_btm][1] + m[:p_dis_exp][1])
-                    )
+            JuMP.@constraint(
+                m,
+                bes_soc_energy_conservation_initial,
+                m[:soc][1] ==
+                (1 - storage.loss_rate) *
+                sets.bes_initial_soc *
+                storage.duration *
+                m[:bes_power_capacity] +
+                (scenario.interval_length / 60) * (
+                    storage.roundtrip_eff * m[:p_cha][1] -
+                    (m[:p_dis_btm][1] + m[:p_dis_exp][1])
                 )
-            end
+            )
         else
             JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
                 m[:soc][1] ==
-                (1 - storage.loss_rate) * sets.bes_initial_soc * storage.energy_capacity +
+                (1 - storage.loss_rate) *
+                sets.bes_initial_soc *
+                storage.duration *
+                storage.power_capacity +
                 (scenario.interval_length / 60) * (
                     storage.roundtrip_eff * m[:p_cha][1] -
                     (m[:p_dis_btm][1] + m[:p_dis_exp][1])
@@ -210,21 +208,18 @@ function define_bes_final_soc_constraint!(
 )
     # Prevent BES final state of charge from being less than BES initial state of charge
     if scenario.problem_type == "CEM"
-        if isnothing(storage.duration)
-            throw(ErrorException("Storage duration is not provided. Please try again."))
-        else
-            JuMP.@constraint(
-                m,
-                bes_final_soc_constraint,
-                m[:soc][sets.num_time_steps] >=
-                sets.bes_initial_soc * storage.duration * m[:bes_power_capacity]
-            )
-        end
+        JuMP.@constraint(
+            m,
+            bes_final_soc_constraint,
+            m[:soc][sets.num_time_steps] >=
+            sets.bes_initial_soc * storage.duration * m[:bes_power_capacity]
+        )
     else
         JuMP.@constraint(
             m,
             bes_final_soc_constraint,
-            m[:soc][sets.num_time_steps] >= sets.bes_initial_soc * storage.energy_capacity
+            m[:soc][sets.num_time_steps] >=
+            sets.bes_initial_soc * storage.duration * storage.power_capacity
         )
     end
 end
@@ -335,20 +330,16 @@ function define_bes_soc_lower_bound!(
 )
     # Set the lower bound for the BES state of charge variable
     if scenario.problem_type == "CEM"
-        if isnothing(storage.duration)
-            throw(ErrorException("Storage duration is not provided. Please try again."))
-        else
-            JuMP.@constraint(
-                m,
-                bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
-                m[:soc][t] >= storage.soc_min * storage.duration * m[:bes_power_capacity]
-            )
-        end
+        JuMP.@constraint(
+            m,
+            bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
+            m[:soc][t] >= storage.soc_min * storage.duration * m[:bes_power_capacity]
+        )
     else
         JuMP.@constraint(
             m,
             bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
-            m[:soc][t] >= storage.soc_min * storage.energy_capacity
+            m[:soc][t] >= storage.soc_min * storage.duration * storage.power_capacity
         )
     end
 end
@@ -373,20 +364,16 @@ function define_bes_soc_upper_bound!(
 )
     # Set the upper bound for the BES state of charge variable
     if scenario.problem_type == "CEM"
-        if isnothing(storage.duration)
-            throw(ErrorException("Storage duration is not provided. Please try again."))
-        else
-            JuMP.@constraint(
-                m,
-                bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
-                m[:soc][t] <= storage.soc_max * storage.duration * m[:bes_power_capacity]
-            )
-        end
+        JuMP.@constraint(
+            m,
+            bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
+            m[:soc][t] <= storage.soc_max * storage.duration * m[:bes_power_capacity]
+        )
     else
         JuMP.@constraint(
             m,
             bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:soc][t] <= storage.soc_max * storage.energy_capacity
+            m[:soc][t] <= storage.soc_max * storage.duration * storage.power_capacity
         )
     end
 end
