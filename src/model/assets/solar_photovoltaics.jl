@@ -29,7 +29,7 @@ function define_solar_photovoltaic_model!(
     end
 
     # Create contraints related to solar PV
-    define_solar_pv_generation_upper_bound!(m, scenario, solar, sets)
+    define_solar_pv_generation_upper_bound!(m, scenario, tariff, solar, sets)
 end
 
 """
@@ -76,6 +76,7 @@ end
     define_solar_pv_generation_upper_bound!(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
         solar::Solar,
         sets::Sets,
     )
@@ -90,26 +91,51 @@ variable.
 function define_solar_pv_generation_upper_bound!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     solar::Solar,
     sets::Sets,
 )
     # Set the upper bound for the PV power generation variable
     if scenario.problem_type == "CEM"
-        JuMP.@constraint(
-            m,
-            pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] * m[:pv_capacity] * solar.inverter_eff
-        )
+        if tariff.nem_enabled & !solar.nonexport
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                m[:pv_capacity] *
+                solar.inverter_eff
+            )
+        else
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                m[:pv_capacity] *
+                solar.inverter_eff
+            )
+        end
     else
-        JuMP.@constraint(
-            m,
-            pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] *
-            solar.power_capacity *
-            solar.inverter_eff
-        )
+        if tariff.nem_enabled & !solar.nonexport
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                solar.power_capacity *
+                solar.inverter_eff
+            )
+        else
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                solar.power_capacity *
+                solar.inverter_eff
+            )
+        end
     end
 end
 
@@ -140,10 +166,7 @@ function define_solar_pv_capital_cost_objective!(
             ),
         )
     else
-        JuMP.add_to_expression!(
-            obj,
-            solar.capital_cost * m[:pv_capacity] / solar.lifespan,
-        )
+        JuMP.add_to_expression!(obj, solar.capital_cost * m[:pv_capacity] / solar.lifespan)
     end
 
     # Add the annual fixed operation and maintenance (O&M) cost associated with building 
