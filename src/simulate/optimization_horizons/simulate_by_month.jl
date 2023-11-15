@@ -82,7 +82,7 @@ function simulate_by_month(
 
         # Pass final state of charge from this pass to initial state of charge of the next
         if storage.enabled
-            if storage.power_capacity == 0 | storage.duration == 0
+            if (storage.power_capacity == 0) | (storage.duration == 0)
                 bes_initial_soc = storage.soc_initial
             else
                 bes_initial_soc =
