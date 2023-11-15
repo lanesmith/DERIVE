@@ -82,8 +82,12 @@ function simulate_by_month(
 
         # Pass final state of charge from this pass to initial state of charge of the next
         if storage.enabled
-            bes_initial_soc =
-                last(JuMP.value.(m[:soc])) / (storage.duration * storage.power_capacity)
+            if storage.power_capacity == 0 | storage.duration == 0
+                bes_initial_soc = storage.soc_initial
+            else
+                bes_initial_soc =
+                    last(JuMP.value.(m[:soc])) / (storage.duration * storage.power_capacity)
+            end
         else
             bes_initial_soc = nothing
         end
