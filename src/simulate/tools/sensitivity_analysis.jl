@@ -10,8 +10,8 @@
         output_filepath::Union{String,Nothing}=nothing;
         sensitivity_variable::String,
         sensitivity_parameter::String,
-        sensitivity_values::Vector{Float64},
-    )::Dict
+        sensitivity_values::Union{Vector{Float64},Vector{Int64}},
+    )::Dict{String,Any}
 
 Performs a single-parameter sensitivity analysis as specified by the user. A set of values 
 for a single field of a single object are provided over which the function will iteratively 
@@ -28,8 +28,8 @@ function perform_sensitivity_analysis(
     output_filepath::Union{String,Nothing}=nothing;
     sensitivity_variable::String,
     sensitivity_parameter::String,
-    sensitivity_values::Vector{Float64},
-)::Dict
+    sensitivity_values::Union{Vector{Float64},Vector{Int64}},
+)::Dict{String,Any}
     # Check that sensitivity_variable corresponds to a viable DERIVE struct
     if !(
         lowercase(sensitivity_variable) in
@@ -130,7 +130,7 @@ end
         derive_object::Union{Tariff,Market,Incentives,Demand,Solar,Storage},
         sensitivity_variable::String,
         sensitivity_parameter::String,
-        new_value::Float64,
+        new_value::Union{Float64,Int64},
     )::Union{Tariff,Market,Incentives,Demand,Solar,Storage}
 
 Update the field of a particular object of a specified type to be the new value provided by 
@@ -140,7 +140,7 @@ function update_struct_for_sensitivity_analysis(
     derive_object::Union{Tariff,Market,Incentives,Demand,Solar,Storage},
     sensitivity_variable::String,
     sensitivity_parameter::String,
-    new_value::Float64,
+    new_value::Union{Float64,Int64},
 )::Union{Tariff,Market,Incentives,Demand,Solar,Storage}
     # Check that sensitivity_parameter is a viable field of the struct of derive_object
     if !(Symbol(sensitivity_parameter) in fieldnames(typeof(derive_object)))
