@@ -16,6 +16,7 @@ function read_scenario(filepath::String)::Scenario
         "timezone" => nothing,
         "payback_period" => nothing,
         "year" => 0,
+        "binary_net_demand_and_exports_linkage" => false,
     )
 
     # Try loading the scenario parameters

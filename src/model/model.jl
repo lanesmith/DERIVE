@@ -140,6 +140,11 @@ function build_optimization_model(
         define_bes_nonimport_constraint!(m, solar, sets)
     end
 
+    # Define the linkage between net demand and exports, if enabled and applicable
+    if tariff.nem_enabled & scenario.binary_net_demand_and_exports_linkage
+        define_net_demand_and_exports_linkage!(m, solar, storage, sets)
+    end
+
     # Define the objective function of the optimization model
     define_objective_function!(
         m,

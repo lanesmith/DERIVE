@@ -14,6 +14,7 @@ Base.@kwdef struct Scenario
     timezone::Union{String,Nothing}
     payback_period::Union{Int64,Nothing}
     year::Int64
+    binary_net_demand_and_exports_linkage::Bool
 end
 
 """
