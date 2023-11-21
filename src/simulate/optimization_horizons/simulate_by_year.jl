@@ -63,6 +63,11 @@ function simulate_by_year(
     # Solve the optimization problem
     JuMP.optimize!(m)
 
+    # Check that the optimization problem was solved succesfully
+    if JuMP.termination_status(m) != JuMP.MOI.OPTIMAL
+        throw(ErrorException("Optimization problem failed to solve. Please try again."))
+    end
+
     # Store the necessary time-series results
     store_time_series_results!(m, scenario, sets, time_series_results, start_date, end_date)
 
