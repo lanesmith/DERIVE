@@ -103,7 +103,7 @@ Base.@kwdef struct Solar
     enabled::Bool
     capacity_factor_profile::Union{DataFrames.DataFrame,Nothing}
     power_capacity::Union{Float64,Nothing}
-    maximum_system_capacity::Union{Float64,Nothing}
+    maximum_power_capacity::Union{Float64,Nothing}
     module_manufacturer::Union{String,Nothing}
     module_name::Union{String,Nothing}
     module_nominal_power::Union{Float64,Nothing}
@@ -137,8 +137,8 @@ A struct to hold information about the specifications of the battery energy stor
 Base.@kwdef struct Storage
     enabled::Bool
     power_capacity::Union{Float64,Nothing}
-    duration::Union{Float64,Nothing}
     maximum_power_capacity::Union{Float64,Nothing}
+    duration::Union{Float64,Nothing}
     soc_min::Float64
     soc_max::Float64
     soc_initial::Float64

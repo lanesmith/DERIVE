@@ -78,10 +78,18 @@ function define_net_demand_and_exports_linkage!(
     # Define the total potential exports capacity
     p_exports_ub = 0
     if solar.enabled
-        p_exports_ub += solar.power_capacity
+        if scenario.problem_type == "PCM"
+            p_exports_ub += solar.power_capacity
+        elseif scenario.problem_type == "CEM"
+            p_exports_ub += solar.maximum_power_capacity
+        end
     end
     if storage.enabled & !storage.nonexport
-        p_exports_ub += storage.power_capacity
+        if scenario.problem_type == "PCM"
+            p_exports_ub += storage.power_capacity
+        elseif scenario.problem_type == "CEM"
+            p_exports_ub += storage.maximum_power_capacity
+        end
     end
 
     # Define the constraint that prevents exports if net demand does not equal zero
