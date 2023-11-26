@@ -141,10 +141,8 @@ function build_optimization_model(
     end
 
     # Define the linkage between net demand and exports, if enabled and applicable
-    if tariff.nem_enabled &
-       scenario.binary_net_demand_and_exports_linkage &
-       (scenario.problem_type == "PCM")
-        define_net_demand_and_exports_linkage!(m, solar, storage, sets)
+    if tariff.nem_enabled & scenario.binary_net_demand_and_exports_linkage
+        define_net_demand_and_exports_linkage!(m, scenario, solar, storage, sets)
     end
 
     # Define the objective function of the optimization model

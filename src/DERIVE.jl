@@ -30,6 +30,7 @@ include("model/assets/solar_photovoltaics.jl")
 include("model/assets/battery_energy_storage.jl")
 include("model/assets/simple_shiftable_demand.jl")
 include("model/mechanisms/time_of_use_rates.jl")
+include("model/mechanisms/net_energy_metering.jl")
 include("model/mechanisms/tiered_energy_rates.jl")
 include("model/mechanisms/tariff_interconnection_rules.jl")
 
