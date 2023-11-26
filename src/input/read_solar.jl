@@ -10,7 +10,7 @@ function read_solar(filepath::String)::Solar
         "enabled" => false,
         "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
-        "maximum_system_capacity" => nothing,
+        "maximum_power_capacity" => nothing,
         "module_manufacturer" => nothing,
         "module_name" => nothing,
         "module_nominal_power" => nothing,
