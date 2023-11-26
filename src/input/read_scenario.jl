@@ -17,6 +17,7 @@ function read_scenario(filepath::String)::Scenario
         "payback_period" => nothing,
         "year" => 0,
         "binary_net_demand_and_exports_linkage" => false,
+        "binary_pv_capacity_and_exports_linkage" => false,
     )
 
     # Try loading the scenario parameters

@@ -145,6 +145,15 @@ function build_optimization_model(
         define_net_demand_and_exports_linkage!(m, scenario, solar, storage, sets)
     end
 
+    # Define the linkage between PV capacity and exports for the capacity expansion 
+    # formulation, if enabled and applicable
+    if tariff.nem_enabled &
+       scenario.binary_pv_capacity_and_exports_linkage &
+       solar.enabled &
+       (scenario.problem_type == "CEM")
+        define_pv_capacity_and_exports_linkage!(m, scenario, solar, storage, sets)
+    end
+
     # Define the objective function of the optimization model
     define_objective_function!(
         m,

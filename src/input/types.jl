@@ -15,6 +15,7 @@ Base.@kwdef struct Scenario
     payback_period::Union{Int64,Nothing}
     year::Int64
     binary_net_demand_and_exports_linkage::Bool
+    binary_pv_capacity_and_exports_linkage::Bool
 end
 
 """
