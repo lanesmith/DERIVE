@@ -13,6 +13,7 @@ Base.@kwdef struct Scenario
     longitude::Union{Float64,Nothing}
     timezone::Union{String,Nothing}
     payback_period::Union{Int64,Nothing}
+    discount_rate::Union{Float64,Nothing}
     year::Int64
     binary_net_demand_and_exports_linkage::Bool
     binary_pv_capacity_and_exports_linkage::Bool

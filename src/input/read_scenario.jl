@@ -15,6 +15,7 @@ function read_scenario(filepath::String)::Scenario
         "longitude" => nothing,
         "timezone" => nothing,
         "payback_period" => nothing,
+        "discount_rate" => nothing,
         "year" => 0,
         "binary_net_demand_and_exports_linkage" => false,
         "binary_pv_capacity_and_exports_linkage" => false,

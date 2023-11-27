@@ -386,6 +386,7 @@ end
     define_bes_capital_cost_objective!(
         m::JuMP.Model,
         obj::JuMP.AffExpr,
+        scenario::Scenario,
         storage::Storage,
     )
 
@@ -398,6 +399,7 @@ not provided. Including fixed O&M costs is not required.
 function define_bes_capital_cost_objective!(
     m::JuMP.Model,
     obj::JuMP.AffExpr,
+    scenario::Scenario,
     storage::Storage,
 )
     # Add the amortized capital cost associated with the power rating of building the 
@@ -410,10 +412,20 @@ function define_bes_capital_cost_objective!(
             ),
         )
     else
-        JuMP.add_to_expression!(
-            obj,
-            storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
-        )
+        if isnothing(scenario.discount_rate)
+            JuMP.add_to_expression!(
+                obj,
+                storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+            )
+        else
+            JuMP.add_to_expression!(
+                obj,
+                (scenario.discount_rate * (1 + scenario.discount_rate)^storage.lifespan) /
+                ((1 + scenario.discount_rate)^storage.lifespan - 1) *
+                storage.power_capital_cost *
+                m[:bes_power_capacity],
+            )
+        end
     end
 
     # Add the annual fixed operation and maintenance (O&M) cost associated with building 

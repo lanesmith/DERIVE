@@ -143,6 +143,7 @@ end
     define_solar_pv_capital_cost_objective!(
         m::JuMP.Model,
         obj::JuMP.AffExpr,
+        scenario::Scenario,
         solar::Solar,
     )
 
@@ -154,6 +155,7 @@ is not required.
 function define_solar_pv_capital_cost_objective!(
     m::JuMP.Model,
     obj::JuMP.AffExpr,
+    scenario::Scenario,
     solar::Solar,
 )
     # Add the amortized capital cost of building the determined PV system to the objective 
@@ -166,7 +168,20 @@ function define_solar_pv_capital_cost_objective!(
             ),
         )
     else
-        JuMP.add_to_expression!(obj, solar.capital_cost * m[:pv_capacity] / solar.lifespan)
+        if isnothing(scenario.discount_rate)
+            JuMP.add_to_expression!(
+                obj,
+                solar.capital_cost * m[:pv_capacity] / solar.lifespan,
+            )
+        else
+            JuMP.add_to_expression!(
+                obj,
+                (scenario.discount_rate * (1 + scenario.discount_rate)^solar.lifespan) /
+                ((1 + scenario.discount_rate)^solar.lifespan - 1) *
+                solar.capital_cost *
+                m[:pv_capacity],
+            )
+        end
     end
 
     # Add the annual fixed operation and maintenance (O&M) cost associated with building 

@@ -51,18 +51,18 @@ function define_objective_function!(
     if scenario.problem_type == "CEM"
         # Add in capital costs associated with solar photovoltaics (PVs), if applicable
         if solar.enabled
-            define_solar_pv_capital_cost_objective!(m, obj, solar)
+            define_solar_pv_capital_cost_objective!(m, obj, scenario, solar)
 
             # Add in solar PV investment tax credit (ITC), if applicable
-            define_solar_investment_tax_credit!(m, obj, solar)
+            define_solar_investment_tax_credit!(m, obj, scenario, solar)
         end
 
         # Add in capital costs associated with battery energy storage (BES), if applicable
         if storage.enabled
-            define_bes_capital_cost_objective!(m, obj, storage)
+            define_bes_capital_cost_objective!(m, obj, scenario, storage)
 
             # Add in BES ITC, if applicable
-            define_storage_investment_tax_credit!(m, obj, storage)
+            define_storage_investment_tax_credit!(m, obj, scenario, storage)
         end
     end
 
