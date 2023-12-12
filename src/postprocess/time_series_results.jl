@@ -22,7 +22,7 @@ function initialize_time_series_results(
     )
 
     # Add columns to time_series_results if net energy metering (NEM) is enabled
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         time_series_results[!, :net_exports] = Float64[]
     end
 
@@ -39,7 +39,7 @@ function initialize_time_series_results(
         time_series_results[!, :bes_state_of_charge] = Float64[]
         time_series_results[!, :bes_charging] = Float64[]
         time_series_results[!, :bes_discharging_btm] = Float64[]
-        if tariff.nem_enabled & !storage.nonexport
+        if tariff.nem_enabled & solar.enabled & !storage.nonexport
             time_series_results[!, :bes_discharging_export] = Float64[]
         end
     end
@@ -52,7 +52,7 @@ function initialize_time_series_results(
 
     # Add columns to time_series_results for price information
     time_series_results[!, :energy_prices] = Float64[]
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         time_series_results[!, :export_prices] = Float64[]
     end
 

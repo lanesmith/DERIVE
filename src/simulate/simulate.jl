@@ -17,10 +17,10 @@ function load_and_preprocess_data(input_filepath::String)
 
     # Perform extra preprocessing of input data, as necessary
     demand = adjust_demand_profiles(scenario, demand)
-    tariff = create_rate_profiles(scenario, tariff, input_filepath)
     if solar.enabled & isnothing(solar.capacity_factor_profile)
         solar = create_solar_capacity_factor_profile(scenario, solar)
     end
+    tariff = create_rate_profiles(scenario, tariff, solar, input_filepath)
     println("All data preprocessing complete!")
 
     # Return the created objects
@@ -141,6 +141,7 @@ function solve_problem(
     results["electricity_bill"] = calculate_electricity_bill(
         scenario,
         tariff,
+        solar,
         results["time-series"],
         output_filepath,
     )

@@ -3,6 +3,7 @@
         m::JuMP.Model,
         scenario::Scenario,
         tariff::Tariff,
+        solar::Solar,
         storage::Storage,
         sets::Sets,
     )
@@ -14,26 +15,27 @@ function define_battery_energy_storage_model!(
     m::JuMP.Model,
     scenario::Scenario,
     tariff::Tariff,
+    solar::Solar,
     storage::Storage,
     sets::Sets,
 )
     # Create variables related to battery energy storage (BES)
-    define_bes_variables!(m, scenario, tariff, storage, sets)
+    define_bes_variables!(m, scenario, tariff, solar, storage, sets)
 
     # Update the expression for net demand
     JuMP.add_to_expression!.(m[:d_net], m[:p_cha])
     JuMP.add_to_expression!.(m[:d_net], -1 .* m[:p_dis_btm])
 
     # Update the expression for total exports, if net metering and BES exports are enabled
-    if tariff.nem_enabled & !storage.nonexport
+    if tariff.nem_enabled & solar.enabled & !storage.nonexport
         JuMP.add_to_expression!.(m[:p_exports], m[:p_dis_exp])
     end
 
     # Create constraints related to BES
-    define_bes_soc_energy_conservation!(m, scenario, tariff, storage, sets)
+    define_bes_soc_energy_conservation!(m, scenario, tariff, solar, storage, sets)
     define_bes_final_soc_constraint!(m, scenario, storage, sets)
     define_bes_charging_upper_bound!(m, scenario, storage, sets)
-    define_bes_discharging_upper_bound!(m, scenario, tariff, storage, sets)
+    define_bes_discharging_upper_bound!(m, scenario, tariff, solar, storage, sets)
     define_bes_soc_lower_bound!(m, scenario, storage, sets)
     define_bes_soc_upper_bound!(m, scenario, storage, sets)
 end
@@ -42,6 +44,8 @@ end
     define_bes_variables!(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
+        solar::Solar,
         storage::Storage,
         sets::Sets,
     )
@@ -57,6 +61,7 @@ function define_bes_variables!(
     m::JuMP.Model,
     scenario::Scenario,
     tariff::Tariff,
+    solar::Solar,
     storage::Storage,
     sets::Sets,
 )
@@ -65,7 +70,7 @@ function define_bes_variables!(
     JuMP.@variable(m, p_dis_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the BES discharge variables for export use (e.g., for net metering)
-    if tariff.nem_enabled & !storage.nonexport
+    if tariff.nem_enabled & solar.enabled & !storage.nonexport
         JuMP.@variable(m, p_dis_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 
@@ -88,6 +93,7 @@ end
         m::JuMP.Model,
         scenario::Scenario,
         tariff::Tariff,
+        solar::Solar,
         storage::Storage,
         sets::Sets,
     )
@@ -101,11 +107,12 @@ function define_bes_soc_energy_conservation!(
     m::JuMP.Model,
     scenario::Scenario,
     tariff::Tariff,
+    solar::Solar,
     storage::Storage,
     sets::Sets,
 )
     # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
-    if tariff.nem_enabled & !storage.nonexport
+    if tariff.nem_enabled & solar.enabled & !storage.nonexport
         # Set equality constraint to maintain BES state of charge for the first time step
         if scenario.problem_type == "CEM"
             JuMP.@constraint(
@@ -265,6 +272,7 @@ end
         m::JuMP.Model,
         scenario::Scenario,
         tariff::Tariff,
+        solar::Solar,
         storage::Storage,
         sets::Sets,
     )
@@ -277,11 +285,12 @@ function define_bes_discharging_upper_bound!(
     m::JuMP.Model,
     scenario::Scenario,
     tariff::Tariff,
+    solar::Solar,
     storage::Storage,
     sets::Sets,
 )
     # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
-    if tariff.nem_enabled & !storage.nonexport
+    if tariff.nem_enabled & solar.enabled & !storage.nonexport
         # Set the upper bound for the BES discharging power variable
         if scenario.problem_type == "CEM"
             JuMP.@constraint(

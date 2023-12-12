@@ -225,7 +225,7 @@ function create_sets(
     end
 
     # Partition the net energy metering sell prices accordingly
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         sets["nem_prices"] = filter(
             row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
             tariff.nem_prices,

@@ -38,7 +38,7 @@ function define_objective_function!(
     end
 
     # Add in revenue from net energy metering, if applicable
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         define_net_energy_metering_revenue_objective!(m, obj, scenario, sets)
     end
 
@@ -109,7 +109,7 @@ function build_optimization_model(
     m = JuMP.Model(s)
 
     # Define demand-related variables and expressions
-    define_demand_variables!(m, tariff, sets)
+    define_demand_variables!(m, tariff, solar, sets)
 
     # Add the solar photovoltaic (PV) model, if enabled
     if solar.enabled
@@ -118,7 +118,7 @@ function build_optimization_model(
 
     # Add the battery energy storage (BES) model, if enabled
     if storage.enabled
-        define_battery_energy_storage_model!(m, scenario, tariff, storage, sets)
+        define_battery_energy_storage_model!(m, scenario, tariff, solar, storage, sets)
     end
 
     # Add the simplified shiftable demand (SSD) model, if enabled
@@ -141,15 +141,15 @@ function build_optimization_model(
     end
 
     # Define the linkage between net demand and exports, if enabled and applicable
-    if tariff.nem_enabled & scenario.binary_net_demand_and_exports_linkage
+    if tariff.nem_enabled & solar.enabled & scenario.binary_net_demand_and_exports_linkage
         define_net_demand_and_exports_linkage!(m, scenario, solar, storage, sets)
     end
 
     # Define the linkage between PV capacity and exports for the capacity expansion 
     # formulation, if enabled and applicable
     if tariff.nem_enabled &
-       scenario.binary_pv_capacity_and_exports_linkage &
        solar.enabled &
+       scenario.binary_pv_capacity_and_exports_linkage &
        (scenario.problem_type == "CEM")
         define_pv_capacity_and_exports_linkage!(m, scenario, solar, storage, sets)
     end

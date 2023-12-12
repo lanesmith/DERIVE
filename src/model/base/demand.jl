@@ -1,5 +1,5 @@
 """
-    define_demand_variables!(m::JuMP.Model, tariff::Tariff, sets::Sets)
+    define_demand_variables!(m::JuMP.Model, tariff::Tariff, solar::Solar, sets::Sets)
 
 Defines useful demand-related decision variables, namely the maximum net demand realized 
 during different tariff-defined periods. Also creates an expression to define the behind-
@@ -7,7 +7,7 @@ the-meter net demand, which is updated in other functions to include the contrib
 different included assets, and an expression to define the total power exported, which is 
 updated in other functions to include the contributions of different included assets.
 """
-function define_demand_variables!(m::JuMP.Model, tariff::Tariff, sets::Sets)
+function define_demand_variables!(m::JuMP.Model, tariff::Tariff, solar::Solar, sets::Sets)
     # Set the maximum net demand during different periods variables
     if !isnothing(sets.demand_prices)
         JuMP.@variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
@@ -17,7 +17,7 @@ function define_demand_variables!(m::JuMP.Model, tariff::Tariff, sets::Sets)
     JuMP.@expression(m, d_net[t in 1:(sets.num_time_steps)], JuMP.AffExpr(sets.demand[t]))
 
     # Create expression for total exports; update based on program/resource participation
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         JuMP.@expression(m, p_exports[t in 1:(sets.num_time_steps)], JuMP.AffExpr())
     end
 end

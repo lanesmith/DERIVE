@@ -494,12 +494,22 @@ function calculate_nem_3_price_profile(
 end
 
 """
-    create_rate_profiles(scenario::Scenario, tariff::Tariff, filepath::String)::Tariff
+    create_rate_profiles(
+        scenario::Scenario,
+        tariff::Tariff,
+        solar::Solar,
+        filepath::String,
+    )::Tariff
 
 Create the profiles that describe how consumers are exposed to demand charges, energy 
 charges, and net metering sell rates.
 """
-function create_rate_profiles(scenario::Scenario, tariff::Tariff, filepath::String)::Tariff
+function create_rate_profiles(
+    scenario::Scenario,
+    tariff::Tariff,
+    solar::Solar,
+    filepath::String,
+)::Tariff
     # Initialize the updated Tariff struct object
     tariff_ = Dict{String,Any}(string(i) => getfield(tariff, i) for i in fieldnames(Tariff))
     println("...preparing price profiles")
@@ -516,7 +526,7 @@ function create_rate_profiles(scenario::Scenario, tariff::Tariff, filepath::Stri
     end
 
     # Create the net energy metering (NEM) sell price profile
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         tariff_["nem_prices"] =
             create_nem_price_profile(scenario, tariff, tariff_["energy_prices"], filepath)
     end

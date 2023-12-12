@@ -2,6 +2,7 @@
     calculate_electricity_bill(
         scenario::Scenario,
         tariff::Tariff,
+        solar::Solar,
         time_series_results::DataFrames.DataFrame,
         output_filepath::Union{String,Nothing}=nothing,
     )::Dict{String,Any}
@@ -12,6 +13,7 @@ Provides bill components in addition to the total electricity bill.
 function calculate_electricity_bill(
     scenario::Scenario,
     tariff::Tariff,
+    solar::Solar,
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict{String,Any}
@@ -37,7 +39,7 @@ function calculate_electricity_bill(
     end
 
     # Calculate the total revenue from net energy metering (NEM), if applicable
-    if tariff.nem_enabled
+    if tariff.nem_enabled & solar.enabled
         # Calculate NEM revenue
         bill_results["nem_revenue"] =
             sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
