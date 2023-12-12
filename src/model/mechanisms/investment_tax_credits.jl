@@ -25,18 +25,36 @@ function define_solar_investment_tax_credit!(
             ),
         )
     else
-        if isnothing(scenario.discount_rate)
-            JuMP.add_to_expression!(
-                obj,
-                -1 * solar.investment_tax_credit * solar.capital_cost * m[:pv_capacity] /
-                solar.lifespan,
-            )
+        if isnothing(scenario.real_discount_rate)
+            if isnothing(scenario.nominal_discount_rate) |
+               isnothing(scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    -1 *
+                    solar.investment_tax_credit *
+                    solar.capital_cost *
+                    m[:pv_capacity] / solar.lifespan,
+                )
+            else
+                real_discount_rate =
+                    (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                    (1 + scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    -1 * (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                    ((1 + real_discount_rate)^solar.lifespan - 1) *
+                    solar.investment_tax_credit *
+                    solar.capital_cost *
+                    m[:pv_capacity],
+                )
+            end
         else
             JuMP.add_to_expression!(
                 obj,
-                -1 *
-                (scenario.discount_rate * (1 + scenario.discount_rate)^solar.lifespan) /
-                ((1 + scenario.discount_rate)^solar.lifespan - 1) *
+                -1 * (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^solar.lifespan
+                ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1) *
                 solar.investment_tax_credit *
                 solar.capital_cost *
                 m[:pv_capacity],
@@ -73,20 +91,36 @@ function define_storage_investment_tax_credit!(
             ),
         )
     else
-        if isnothing(scenario.discount_rate)
-            JuMP.add_to_expression!(
-                obj,
-                -1 *
-                storage.investment_tax_credit *
-                storage.power_capital_cost *
-                m[:bes_power_capacity] / storage.lifespan,
-            )
+        if isnothing(scenario.real_discount_rate)
+            if isnothing(scenario.nominal_discount_rate) |
+               isnothing(scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    -1 *
+                    storage.investment_tax_credit *
+                    storage.power_capital_cost *
+                    m[:bes_power_capacity] / storage.lifespan,
+                )
+            else
+                real_discount_rate =
+                    (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                    (1 + scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    -1 * (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
+                    ((1 + real_discount_rate)^storage.lifespan - 1) *
+                    storage.investment_tax_credit *
+                    storage.power_capital_cost *
+                    m[:bes_power_capacity],
+                )
+            end
         else
             JuMP.add_to_expression!(
                 obj,
-                -1 *
-                (scenario.discount_rate * (1 + scenario.discount_rate)^storage.lifespan) /
-                ((1 + scenario.discount_rate)^storage.lifespan - 1) *
+                -1 * (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^storage.lifespan
+                ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1) *
                 storage.investment_tax_credit *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],

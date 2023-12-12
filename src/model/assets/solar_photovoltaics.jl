@@ -168,16 +168,32 @@ function define_solar_pv_capital_cost_objective!(
             ),
         )
     else
-        if isnothing(scenario.discount_rate)
-            JuMP.add_to_expression!(
-                obj,
-                solar.capital_cost * m[:pv_capacity] / solar.lifespan,
-            )
+        if isnothing(scenario.real_discount_rate)
+            if isnothing(scenario.nominal_discount_rate) |
+               isnothing(scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    solar.capital_cost * m[:pv_capacity] / solar.lifespan,
+                )
+            else
+                real_discount_rate =
+                    (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                    (1 + scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                    ((1 + real_discount_rate)^solar.lifespan - 1) *
+                    solar.capital_cost *
+                    m[:pv_capacity],
+                )
+            end
         else
             JuMP.add_to_expression!(
                 obj,
-                (scenario.discount_rate * (1 + scenario.discount_rate)^solar.lifespan) /
-                ((1 + scenario.discount_rate)^solar.lifespan - 1) *
+                (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^solar.lifespan
+                ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1) *
                 solar.capital_cost *
                 m[:pv_capacity],
             )

@@ -412,16 +412,32 @@ function define_bes_capital_cost_objective!(
             ),
         )
     else
-        if isnothing(scenario.discount_rate)
-            JuMP.add_to_expression!(
-                obj,
-                storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
-            )
+        if isnothing(scenario.real_discount_rate)
+            if isnothing(scenario.nominal_discount_rate) |
+               isnothing(scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+                )
+            else
+                real_discount_rate =
+                    (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                    (1 + scenario.inflation_rate)
+                JuMP.add_to_expression!(
+                    obj,
+                    (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
+                    ((1 + real_discount_rate)^storage.lifespan - 1) *
+                    storage.power_capital_cost *
+                    m[:bes_power_capacity],
+                )
+            end
         else
             JuMP.add_to_expression!(
                 obj,
-                (scenario.discount_rate * (1 + scenario.discount_rate)^storage.lifespan) /
-                ((1 + scenario.discount_rate)^storage.lifespan - 1) *
+                (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^storage.lifespan
+                ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1) *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
             )
