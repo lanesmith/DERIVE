@@ -126,31 +126,19 @@ function define_pv_capacity_and_exports_linkage!(
     sets::Sets,
 )
     # Define the binary variable that indicates if PV capacity is less than or equal to zero
-    JuMP.@variable(
-        m,
-        ζ_pv[t in 1:(sets.num_time_steps)],
-        binary = scenario.binary_pv_capacity_and_exports_linkage,
-    )
+    JuMP.@variable(m, ζ_pv, binary = scenario.binary_pv_capacity_and_exports_linkage,)
 
     # Add bounds to the indicator variable if it is linear instead of binary
     if !scenario.binary_pv_capacity_and_exports_linkage
-        JuMP.@constraint(
-            m,
-            pv_capacity_inidcator_lower_bound[t in 1:(sets.num_time_steps)],
-            ζ_pv[t] >= 0
-        )
-        JuMP.@constraint(
-            m,
-            pv_capacity_inidcator_upper_bound[t in 1:(sets.num_time_steps)],
-            ζ_pv[t] <= 1
-        )
+        JuMP.@constraint(m, pv_capacity_inidcator_lower_bound, ζ_pv >= 0)
+        JuMP.@constraint(m, pv_capacity_inidcator_upper_bound, ζ_pv <= 1)
     end
 
     # Define the constraint that defines the indicator variable    
     JuMP.@constraint(
         m,
-        pv_capacity_and_exports_linkage_constraint[t in 1:(sets.num_time_steps)],
-        ζ_pv[t] => {m[:pv_capacity][t] <= 0},
+        pv_capacity_and_exports_linkage_constraint,
+        ζ_pv => {m[:pv_capacity] <= 0},
     )
 
     # Define the total potential exports capacity
@@ -166,6 +154,6 @@ function define_pv_capacity_and_exports_linkage!(
     JuMP.@constraint(
         m,
         exports_considering_pv_capacity_upper_bound_constraint[t in 1:(sets.num_time_steps)],
-        m[:p_exports][t] <= (1 - ζ_pv[t]) * p_exports_ub,
+        m[:p_exports][t] <= (1 - ζ_pv) * p_exports_ub,
     )
 end
