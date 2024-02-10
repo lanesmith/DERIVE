@@ -9,12 +9,14 @@ function read_demand(filepath::String)::Demand
     demand = Dict{String,Any}(
         "demand_profile" => nothing,
         "simple_shift_enabled" => false,
+        "shed_enabled" => false,
         "shift_up_capacity_profile" => nothing,
         "shift_down_capacity_profile" => nothing,
         "shift_percent" => nothing,
         "shift_duration" => nothing,
         "shift_up_cost" => 0.0,
         "shift_down_cost" => 0.0,
+        "value_of_lost_load" => 0.0,
     )
 
     # Try loading the demand parameters

@@ -89,12 +89,14 @@ characteristics about the consumer's base demand.
 Base.@kwdef struct Demand
     demand_profile::DataFrames.DataFrame
     simple_shift_enabled::Bool
+    shed_enabled::Bool
     shift_up_capacity_profile::Union{DataFrames.DataFrame,Nothing}
     shift_down_capacity_profile::Union{DataFrames.DataFrame,Nothing}
     shift_percent::Union{Float64,Nothing}
     shift_duration::Union{Int64,Nothing}
     shift_up_cost::Float64
     shift_down_cost::Float64
+    value_of_lost_load::Float64
 end
 
 """

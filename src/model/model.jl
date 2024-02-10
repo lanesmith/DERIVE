@@ -47,6 +47,11 @@ function define_objective_function!(
         define_shiftable_demand_variable_cost_objective!(m, obj, demand)
     end
 
+    # Add in variable cost associated with the sheddable demand model, if applicable
+    if demand.shed_enabled
+        define_sheddable_demand_variable_cost_objective!(m, obj, demand)
+    end
+
     # Add in capacity expansion model-specific charges and incentives
     if scenario.problem_type == "CEM"
         # Add in capital costs associated with solar photovoltaics (PVs), if applicable
@@ -124,6 +129,11 @@ function build_optimization_model(
     # Add the simplified shiftable demand (SSD) model, if enabled
     if demand.simple_shift_enabled
         define_simple_shiftable_demand_model!(m, scenario, demand, sets)
+    end
+
+    # Add the sheddable demand model, if enabled
+    if demand.shed_enabled
+        define_sheddable_demand_model!(m, sets)
     end
 
     # Define demand-related constraints

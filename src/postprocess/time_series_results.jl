@@ -50,6 +50,11 @@ function initialize_time_series_results(
         time_series_results[!, :ssd_down_deviations] = Float64[]
     end
 
+    # Add a column to time_series_results if sheddable demand is enabled
+    if demand.shed_enabled
+        time_series_results[!, :demand_shed] = Float64[]
+    end
+
     # Add columns to time_series_results for price information
     time_series_results[!, :energy_prices] = Float64[]
     if tariff.nem_enabled & solar.enabled
@@ -123,6 +128,8 @@ function store_time_series_results!(
             temp_results[!, c] = JuMP.value.(m[:d_dev_up])
         elseif c == "ssd_down_deviations"
             temp_results[!, c] = JuMP.value.(m[:d_dev_dn])
+        elseif c == "demand_shed"
+            temp_results[!, c] = JuMP.value.(m[:d_shed])
         elseif c == "energy_prices"
             temp_results[!, c] = sets.energy_prices
         elseif c == "export_prices"
