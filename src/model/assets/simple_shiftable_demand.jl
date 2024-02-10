@@ -130,6 +130,7 @@ function define_shiftable_demand_variable_cost_objective!(
     # Add the variable cost of deviating from the consumer's demand profile
     JuMP.add_to_expression!(
         obj,
+        (scenario.interval_length / 60) *
         sum(demand.shift_down_cost .* m[:d_dev_dn] .+ demand.shift_up_cost .* m[:d_dev_up]),
     )
 end
