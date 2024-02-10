@@ -31,9 +31,9 @@ end
 """
     define_ssd_variables!(m::JuMP.Model, sets::Sets)
 
-Creates a decision variable to determine the amount of demand that is deviated from the 
-base demand profile. Negative demand deviation corresponds to demand that is curtailed and 
-positive demand deviation corresponds to demand that is recovered or met preemptively.
+Creates decision variables to determine the amount of demand that is deviated from the 
+base demand profile. Downward demand deviation corresponds to demand that is curtailed and 
+upward demand deviation corresponds to demand that is recovered or met preemptively.
 """
 function define_ssd_variables!(m::JuMP.Model, sets::Sets)
     # Set the demand deviation variables for simple shiftable demand
