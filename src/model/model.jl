@@ -161,6 +161,21 @@ function build_optimization_model(
        solar.enabled &
        scenario.binary_pv_capacity_and_exports_linkage &
        (scenario.problem_type == "CEM")
+
+        # Provide a relevant warning about whether or not this constraint is necessary
+        if storage.enabled & (storage.nonexport | (!storage.nonexport & storage.nonimport))
+            @warn(
+                "The inclusion of the indicator variable and constraint linking the " *
+                "allowed export capacity and the amount of solar PV capacity is " *
+                "unnecassry for the defined storage interconnection scenario. Storage is " *
+                "either unable to export, rendering the need for the constraint to be " *
+                "moot, or only able to charge from solar PVs, introducing an ingrained " *
+                "reliance between the two resources (i.e., storage cannot discharge " *
+                "without solar PVs)."
+            )
+        end
+
+        # Include the constraint
         define_pv_capacity_and_exports_linkage!(m, scenario, solar, storage, sets)
     end
 
