@@ -167,8 +167,8 @@ function build_optimization_model(
             @warn(
                 "The inclusion of the indicator variable and constraint linking the " *
                 "allowed export capacity and the amount of solar PV capacity is " *
-                "unnecassry for the defined storage interconnection scenario. Storage is " *
-                "either unable to export, rendering the need for the constraint to be " *
+                "unnecessary for the defined storage interconnection scenario. Storage " *
+                "is either unable to export, rendering the need for the constraint to be " *
                 "moot, or only able to charge from solar PVs, introducing an ingrained " *
                 "reliance between the two resources (i.e., storage cannot discharge " *
                 "without solar PVs)."
