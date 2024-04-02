@@ -139,14 +139,9 @@ function read_tariff(filepath::String)::Tariff
                                 :,
                             ],
                         )
-                            for h = (r[k * "_start"] + 1):r[k * "_end"]
-                                if h == 24
-                                    tariff[k * "_rates"][s][0]["rate"] = r[k * "_values"]
-                                    tariff[k * "_rates"][s][0]["label"] = r[k * "_labels"]
-                                else
-                                    tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
-                                    tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
-                                end
+                            for h = (r[k * "_start"]):(r[k * "_end"] - 1)
+                                tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
+                                tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
                             end
                         end
                     end
