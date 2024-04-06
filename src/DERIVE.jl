@@ -5,6 +5,7 @@ using DataFrames
 using Dates
 using Gurobi
 using JuMP
+using Plots
 using Statistics
 using TOML
 
@@ -51,5 +52,6 @@ include("postprocess/electricity_bill_results.jl")
 
 # Include the ability to visualize data and other information
 include("visualize/header.jl")
+include("visualize/time_series_plots.jl")
 
 end
