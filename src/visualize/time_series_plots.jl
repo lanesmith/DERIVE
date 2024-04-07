@@ -814,7 +814,7 @@ function create_price_plot!(
                 linestyle=:dot,
                 xlims=[0, Inf],
                 ylims=[0, Inf],
-                ylabel="Price (\$)",
+                ylabel="Price (\$/kWh)",
             )
             Plots.plot!(
                 [-1],
@@ -834,7 +834,7 @@ function create_price_plot!(
                 xlims=[0, Inf],
                 ylims=[0, Inf],
                 xlabel="Time Step",
-                ylabel="Price (\$)",
+                ylabel="Price (\$/kWh)",
             )
         end
     end
@@ -850,7 +850,7 @@ function create_price_plot!(
                 linestyle=:dot,
                 xlims=[0, Inf],
                 ylims=[0, Inf],
-                ylabel="Price (\$)",
+                ylabel="Price (\$/kWh)",
             )
             Plots.plot!(
                 [-1],
@@ -870,7 +870,7 @@ function create_price_plot!(
                 xlims=[0, Inf],
                 ylims=[0, Inf],
                 xlabel="Time Step",
-                ylabel="Price (\$)",
+                ylabel="Price (\$/kWh)",
             )
         end
     end
