@@ -599,7 +599,10 @@ function create_power_plot!(
     # Plot all PV generation that is used, if applicable
     if plot_pv_generation_all
         Plots.plot!(
-            results[first_time_step:last_time_step, :pv_generation_all];
+            (
+                results[first_time_step:last_time_step, :pv_generation_btm] .+
+                results[first_time_step:last_time_step, :pv_generation_export]
+            );
             label="pv_generation_all",
             color=:darkorange,
             linestyle=:solid,
@@ -660,7 +663,10 @@ function create_power_plot!(
     # Plot all BES discharging, if applicable
     if plot_bes_discharging_all
         Plots.plot!(
-            results[first_time_step:last_time_step, :bes_discharging_all];
+            (
+                results[first_time_step:last_time_step, :bes_discharging_btm] .+
+                results[first_time_step:last_time_step, :bes_discharging_export]
+            );
             label="bes_discharging_all",
             color=:cornflowerblue,
             linestyle=:solid,
