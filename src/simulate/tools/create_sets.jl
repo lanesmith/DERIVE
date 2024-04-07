@@ -53,13 +53,20 @@ function create_sets(
         Dates.month(start_date),
         Dates.day(start_date),
         0,
+        0,
     )
-    end_index =
-        Dates.DateTime(Dates.year(end_date), Dates.month(end_date), Dates.day(end_date), 23)
+    end_index = Dates.DateTime(
+        Dates.year(end_date),
+        Dates.month(end_date),
+        Dates.day(end_date),
+        23,
+        45,
+    )
 
     # Partition the demand profile accordingly
     sets["demand"] = filter(
-        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+        row -> row["timestamp"] in
+        start_index:Dates.Minute(scenario.interval_length):end_index,
         demand.demand_profile,
     )[
         !,
@@ -69,7 +76,8 @@ function create_sets(
     # Partition the solar capacity factor profile accordingly
     if solar.enabled
         sets["solar_capacity_factor_profile"] = filter(
-            row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
             solar.capacity_factor_profile,
         )[
             !,
@@ -80,14 +88,16 @@ function create_sets(
     # Partition the simple shiftable demand profiles accordingly
     if demand.simple_shift_enabled
         sets["shift_up_capacity"] = filter(
-            row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
             demand.shift_up_capacity_profile,
         )[
             !,
             "demand",
         ]
         sets["shift_down_capacity"] = filter(
-            row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
             demand.shift_down_capacity_profile,
         )[
             !,
@@ -97,7 +107,8 @@ function create_sets(
 
     # Partition the energy prices accordingly
     sets["energy_prices"] = filter(
-        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+        row -> row["timestamp"] in
+        start_index:Dates.Minute(scenario.interval_length):end_index,
         tariff.energy_prices,
     )[
         !,
@@ -145,7 +156,8 @@ function create_sets(
 
                     # Add the corresponding demand mask; no change is needed
                     sets["demand_mask"][demand_charge_id] = filter(
-                        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+                        row -> row["timestamp"] in
+                        start_index:Dates.Minute(scenario.interval_length):end_index,
                         tariff.demand_mask,
                     )[
                         !,
@@ -165,7 +177,8 @@ function create_sets(
                 )
                     push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][demand_charge_id] = filter(
-                        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+                        row -> row["timestamp"] in
+                        start_index:Dates.Minute(scenario.interval_length):end_index,
                         tariff.demand_mask,
                     )[
                         !,
@@ -181,7 +194,8 @@ function create_sets(
                    occursin("_" * string(Dates.month(start_index)) * "_", k)
                     push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][demand_charge_id] = filter(
-                        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+                        row -> row["timestamp"] in
+                        start_index:Dates.Minute(scenario.interval_length):end_index,
                         tariff.demand_mask,
                     )[
                         !,
@@ -193,7 +207,8 @@ function create_sets(
                        occursin("_" * string(Dates.month(start_index)) * "-", k)
                     push!(sets["demand_prices"], tariff.demand_prices[k])
                     sets["demand_mask"][demand_charge_id] = filter(
-                        row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+                        row -> row["timestamp"] in
+                        start_index:Dates.Minute(scenario.interval_length):end_index,
                         tariff.demand_mask,
                     )[
                         !,
@@ -227,7 +242,8 @@ function create_sets(
     # Partition the net energy metering sell prices accordingly
     if tariff.nem_enabled & solar.enabled
         sets["nem_prices"] = filter(
-            row -> row["timestamp"] in start_index:Dates.Hour(1):end_index,
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
             tariff.nem_prices,
         )[
             !,
