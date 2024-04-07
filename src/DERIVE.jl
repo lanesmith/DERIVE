@@ -53,5 +53,6 @@ include("postprocess/electricity_bill_results.jl")
 # Include the ability to visualize data and other information
 include("visualize/header.jl")
 include("visualize/time_series_plots.jl")
+include("visualize/time_series_heatmaps.jl")
 
 end
