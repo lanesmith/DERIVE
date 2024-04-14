@@ -24,7 +24,7 @@ function simulate_by_year(
     storage::Storage,
     time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
-)::Tuple{DataFrames.DataFrame,Dict}
+)::Tuple{DataFrames.DataFrame,Union{Dict,Nothing}}
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial
@@ -77,9 +77,11 @@ function simulate_by_year(
     end
 
     # Store the investment-cost results, if applicable
-    investment_cost_results = Dict{String,Any}()
     if scenario.problem_type == "CEM"
-        store_investment_cost_results!(m, sets, investment_cost_results)
+        investment_cost_results =
+            store_investment_cost_results(m, solar, storage, output_filepath)
+    else
+        investment_cost_results = nothing
     end
 
     # Return the results
