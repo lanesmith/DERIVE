@@ -97,7 +97,9 @@ function perform_sensitivity_analysis(
         end
 
         # Create a directory to hold results, if desired
-        if !isnothing(output_filepath)
+        if isnothing(output_filepath)
+            output_filepath_ = nothing
+        else
             output_filepath_ = joinpath(
                 output_filepath,
                 sensitivity_variable * "_" * sensitivity_parameter * "_" * string(v),
