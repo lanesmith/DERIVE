@@ -28,6 +28,9 @@ function read_tariff(filepath::String)::Tariff
         "demand_prices" => nothing,
         "demand_mask" => nothing,
         "nem_prices" => nothing,
+        "energy_charge_scaling" => 1.0,
+        "demand_charge_scaling" => 1.0,
+        "all_charge_scaling" => 1.0,
     )
 
     # Try loading the tariff parameters
@@ -228,6 +231,27 @@ function read_tariff(filepath::String)::Tariff
                     ),
                 )
             end
+        end
+    end
+
+    # Check that the scaling terms are not less than or equal to zero
+    for p in ["energy_charge_scaling", "demand_charge_scaling", "all_charge_scaling"]
+        if tariff[p] < 0.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    p *
+                    " parameter is negative, which does not make sense for price-based " *
+                    "terms. Please try again.",
+                ),
+            )
+        end
+    end
+
+    # Update the scaling terms depending on the all_charge_scaling term
+    if tariff["all_charge_scaling"] != 1.0
+        for p in ["energy_charge_scaling", "demand_charge_scaling"]
+            tariff[p] = 1.0
         end
     end
 

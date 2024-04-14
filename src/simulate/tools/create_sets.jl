@@ -106,14 +106,15 @@ function create_sets(
     end
 
     # Partition the energy prices accordingly
-    sets["energy_prices"] = filter(
-        row -> row["timestamp"] in
-        start_index:Dates.Minute(scenario.interval_length):end_index,
-        tariff.energy_prices,
-    )[
-        !,
-        "rates",
-    ]
+    sets["energy_prices"] =
+        tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
+            tariff.energy_prices,
+        )[
+            !,
+            "rates",
+        ]
 
     # Partition the tiered energy rate information accordingly
     if !isnothing(tariff.energy_tiered_rates)
@@ -151,6 +152,8 @@ function create_sets(
                     # optimization horizon.
                     push!(
                         sets["demand_prices"],
+                        tariff.all_charge_scaling *
+                        tariff.demand_charge_scaling *
                         tariff.demand_prices[k] / Dates.daysinmonth(start_index),
                     )
 
@@ -175,7 +178,12 @@ function create_sets(
                     "_",
                     k,
                 )
-                    push!(sets["demand_prices"], tariff.demand_prices[k])
+                    push!(
+                        sets["demand_prices"],
+                        tariff.all_charge_scaling *
+                        tariff.demand_charge_scaling *
+                        tariff.demand_prices[k],
+                    )
                     sets["demand_mask"][demand_charge_id] = filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,
@@ -192,7 +200,12 @@ function create_sets(
             for k in keys(tariff.demand_prices)
                 if occursin("monthly", k) &
                    occursin("_" * string(Dates.month(start_index)) * "_", k)
-                    push!(sets["demand_prices"], tariff.demand_prices[k])
+                    push!(
+                        sets["demand_prices"],
+                        tariff.all_charge_scaling *
+                        tariff.demand_charge_scaling *
+                        tariff.demand_prices[k],
+                    )
                     sets["demand_mask"][demand_charge_id] = filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,
@@ -205,7 +218,12 @@ function create_sets(
                     demand_charge_id += 1
                 elseif occursin("daily", k) &
                        occursin("_" * string(Dates.month(start_index)) * "-", k)
-                    push!(sets["demand_prices"], tariff.demand_prices[k])
+                    push!(
+                        sets["demand_prices"],
+                        tariff.all_charge_scaling *
+                        tariff.demand_charge_scaling *
+                        tariff.demand_prices[k],
+                    )
                     sets["demand_mask"][demand_charge_id] = filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,
@@ -220,7 +238,12 @@ function create_sets(
             end
         elseif scenario.optimization_horizon == "YEAR"
             for k in keys(tariff.demand_prices)
-                push!(sets["demand_prices"], tariff.demand_prices[k])
+                push!(
+                    sets["demand_prices"],
+                    tariff.all_charge_scaling *
+                    tariff.demand_charge_scaling *
+                    tariff.demand_prices[k],
+                )
                 sets["demand_mask"][demand_charge_id] = tariff.demand_mask[!, k]
                 sets["demand_charge_label_to_id"][k] = demand_charge_id
                 demand_charge_id += 1
@@ -241,14 +264,38 @@ function create_sets(
 
     # Partition the net energy metering sell prices accordingly
     if tariff.nem_enabled & solar.enabled
-        sets["nem_prices"] = filter(
-            row -> row["timestamp"] in
-            start_index:Dates.Minute(scenario.interval_length):end_index,
-            tariff.nem_prices,
-        )[
-            !,
-            "rates",
-        ]
+        if tariff.nem_version == 1
+            sets["nem_prices"] =
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+                    row -> row["timestamp"] in
+                    start_index:Dates.Minute(scenario.interval_length):end_index,
+                    tariff.nem_prices,
+                )[
+                    !,
+                    "rates",
+                ]
+        elseif tariff.nem_version == 2
+            sets["nem_prices"] =
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
+                    filter(
+                        row -> row["timestamp"] in
+                        start_index:Dates.Minute(scenario.interval_length):end_index,
+                        tariff.nem_prices,
+                    )[
+                        !,
+                        "rates",
+                    ] .+ tariff.nem_2_non_bypassable_charge
+                ) .- tariff.nem_2_non_bypassable_charge
+        else
+            sets["nem_prices"] = filter(
+                row -> row["timestamp"] in
+                start_index:Dates.Minute(scenario.interval_length):end_index,
+                tariff.nem_prices,
+            )[
+                !,
+                "rates",
+            ]
+        end
     end
 
     # Set the initial state of charge for battery energy storage (BES)

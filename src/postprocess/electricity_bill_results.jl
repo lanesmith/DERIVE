@@ -22,6 +22,8 @@ function calculate_electricity_bill(
 
     # Calculate the total energy charge
     bill_results["energy_charge"] =
+        tariff.all_charge_scaling *
+        tariff.energy_charge_scaling *
         sum(time_series_results[!, "net_demand"] .* tariff.energy_prices[!, "rates"])
 
     # Initialize the cost of the total electricity bill
@@ -29,10 +31,14 @@ function calculate_electricity_bill(
 
     # Calculate the total demand charge, if applicable
     if !isnothing(tariff.demand_prices)
-        bill_results["demand_charge"] = sum(
-            v * maximum(tariff.demand_mask[!, k] .* time_series_results[!, "net_demand"])
-            for (k, v) in tariff.demand_prices
-        )
+        bill_results["demand_charge"] =
+            tariff.all_charge_scaling *
+            tariff.demand_charge_scaling *
+            sum(
+                v *
+                maximum(tariff.demand_mask[!, k] .* time_series_results[!, "net_demand"])
+                for (k, v) in tariff.demand_prices
+            )
 
         # Update the cost of the total electricity bill
         bill_results["total_charge"] += bill_results["demand_charge"]
@@ -41,8 +47,23 @@ function calculate_electricity_bill(
     # Calculate the total revenue from net energy metering (NEM), if applicable
     if tariff.nem_enabled & solar.enabled
         # Calculate NEM revenue
-        bill_results["nem_revenue"] =
-            sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
+        if tariff.nem_version == 1
+            bill_results["nem_revenue"] =
+                tariff.all_charge_scaling *
+                tariff.energy_charge_scaling *
+                sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
+        elseif tariff.nem_version == 2
+            bill_results["nem_revenue"] = sum(
+                time_series_results[!, "net_exports"] .* (
+                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
+                        tariff.nem_prices[!, "rates"] .+ tariff.nem_2_non_bypassable_charge
+                    ) .- tariff.nem_2_non_bypassable_charge
+                ),
+            )
+        else
+            bill_results["nem_revenue"] =
+                sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
+        end
 
         # Update the cost of the total electricity bill
         bill_results["total_charge"] -= bill_results["nem_revenue"]

@@ -47,6 +47,9 @@ Base.@kwdef struct Tariff
     demand_prices::Union{Dict,Nothing}
     demand_mask::Union{DataFrames.DataFrame,Nothing}
     nem_prices::Union{DataFrames.DataFrame,Nothing}
+    energy_charge_scaling::Float64
+    demand_charge_scaling::Float64
+    all_charge_scaling::Float64
 end
 
 """
