@@ -78,7 +78,7 @@ function define_bes_variables!(
     JuMP.@variable(m, soc[t in 1:(sets.num_time_steps)])
 
     # Set the BES power and energy capacity variables, if performing capacity expansion
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & storage.make_investment
         # Set the BES power capacity to be unbounded or bounded, as specified
         if isnothing(storage.maximum_power_capacity)
             JuMP.@variable(m, bes_power_capacity >= 0)
@@ -114,7 +114,7 @@ function define_bes_soc_energy_conservation!(
     # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
     if tariff.nem_enabled & solar.enabled & !storage.nonexport
         # Set equality constraint to maintain BES state of charge for the first time step
-        if scenario.problem_type == "CEM"
+        if (scenario.problem_type == "CEM") & storage.make_investment
             JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
@@ -157,7 +157,7 @@ function define_bes_soc_energy_conservation!(
         )
     else
         # Set equality constraint to maintain BES state of charge for the first time step
-        if scenario.problem_type == "CEM"
+        if (scenario.problem_type == "CEM") & storage.make_investment
             JuMP.@constraint(
                 m,
                 bes_soc_energy_conservation_initial,
@@ -216,7 +216,7 @@ function define_bes_final_soc_constraint!(
     sets::Sets,
 )
     # Prevent BES final state of charge from being less than BES initial state of charge
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & storage.make_investment
         JuMP.@constraint(
             m,
             bes_final_soc_constraint,
@@ -252,7 +252,7 @@ function define_bes_charging_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the BES charging power variable
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & storage.make_investment
         JuMP.@constraint(
             m,
             bes_charging_upper_bound[t in 1:(sets.num_time_steps)],
@@ -292,7 +292,7 @@ function define_bes_discharging_upper_bound!(
     # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp included?)
     if tariff.nem_enabled & solar.enabled & !storage.nonexport
         # Set the upper bound for the BES discharging power variable
-        if scenario.problem_type == "CEM"
+        if (scenario.problem_type == "CEM") & storage.make_investment
             JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
@@ -307,7 +307,7 @@ function define_bes_discharging_upper_bound!(
         end
     else
         # Set the upper bound for the BES discharging power variable
-        if scenario.problem_type == "CEM"
+        if (scenario.problem_type == "CEM") & storage.make_investment
             JuMP.@constraint(
                 m,
                 bes_discharging_upper_bound[t in 1:(sets.num_time_steps)],
@@ -342,7 +342,7 @@ function define_bes_soc_lower_bound!(
     sets::Sets,
 )
     # Set the lower bound for the BES state of charge variable
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & storage.make_investment
         JuMP.@constraint(
             m,
             bes_soc_lower_bound[t in 1:(sets.num_time_steps)],
@@ -376,7 +376,7 @@ function define_bes_soc_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the BES state of charge variable
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & storage.make_investment
         JuMP.@constraint(
             m,
             bes_soc_upper_bound[t in 1:(sets.num_time_steps)],

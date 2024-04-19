@@ -126,6 +126,7 @@ Base.@kwdef struct Solar
     module_number_of_cells::Union{Int64,Nothing}
     module_cell_material::Union{String,Nothing}
     nonexport::Bool
+    make_investment::Bool
     capital_cost::Union{Float64,Nothing}
     fixed_om_cost::Union{Float64,Nothing}
     collector_azimuth::Union{Float64,Nothing}
@@ -155,6 +156,7 @@ Base.@kwdef struct Storage
     loss_rate::Float64
     nonexport::Bool
     nonimport::Bool
+    make_investment::Bool
     power_capital_cost::Union{Float64,Nothing}
     fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}

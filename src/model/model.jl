@@ -55,7 +55,7 @@ function define_objective_function!(
     # Add in capacity expansion model-specific charges and incentives
     if scenario.problem_type == "CEM"
         # Add in capital costs associated with solar photovoltaics (PVs), if applicable
-        if solar.enabled
+        if solar.enabled & solar.make_investment
             define_solar_pv_capital_cost_objective!(m, obj, scenario, solar)
 
             # Add in solar PV investment tax credit (ITC), if applicable
@@ -63,7 +63,7 @@ function define_objective_function!(
         end
 
         # Add in capital costs associated with battery energy storage (BES), if applicable
-        if storage.enabled
+        if storage.enabled & storage.make_investment
             define_bes_capital_cost_objective!(m, obj, scenario, storage)
 
             # Add in BES ITC, if applicable

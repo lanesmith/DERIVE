@@ -18,6 +18,7 @@ function read_storage(filepath::String)::Storage
         "loss_rate" => 0.0,
         "nonexport" => true,
         "nonimport" => false,
+        "make_investment" => false,
         "power_capital_cost" => nothing,
         "fixed_om_cost" => nothing,
         "lifespan" => nothing,

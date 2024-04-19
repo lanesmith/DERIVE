@@ -63,7 +63,7 @@ function define_solar_pv_variables!(
     end
 
     # Set the PV system capacity variable, if performing capacity expansion
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & solar.make_investment
         if isnothing(solar.maximum_system_capacity)
             JuMP.@variable(m, pv_capacity >= 0)
         else
@@ -96,7 +96,7 @@ function define_solar_pv_generation_upper_bound!(
     sets::Sets,
 )
     # Set the upper bound for the PV power generation variable
-    if scenario.problem_type == "CEM"
+    if (scenario.problem_type == "CEM") & solar.make_investment
         if tariff.nem_enabled & !solar.nonexport
             JuMP.@constraint(
                 m,
