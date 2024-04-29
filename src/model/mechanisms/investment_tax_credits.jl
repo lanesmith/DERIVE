@@ -28,6 +28,7 @@ function define_solar_investment_tax_credit!(
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
+                # Use a simple amortization if the necessary information is not provided
                 JuMP.add_to_expression!(
                     obj,
                     -1 *
@@ -36,9 +37,13 @@ function define_solar_investment_tax_credit!(
                     m[:pv_capacity] / solar.lifespan,
                 )
             else
+                # Calculate the real discount rate using the nominal discount rate and 
+                # inflation rate
                 real_discount_rate =
                     (scenario.nominal_discount_rate - scenario.inflation_rate) /
                     (1 + scenario.inflation_rate)
+
+                # Use the calculated real discount rate
                 JuMP.add_to_expression!(
                     obj,
                     -1 * (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
@@ -49,6 +54,7 @@ function define_solar_investment_tax_credit!(
                 )
             end
         else
+            # Use the user-defined real discount rate
             JuMP.add_to_expression!(
                 obj,
                 -1 * (
@@ -94,6 +100,7 @@ function define_storage_investment_tax_credit!(
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
+                # Use a simple amortization if the necessary information is not provided
                 JuMP.add_to_expression!(
                     obj,
                     -1 *
@@ -102,9 +109,13 @@ function define_storage_investment_tax_credit!(
                     m[:bes_power_capacity] / storage.lifespan,
                 )
             else
+                # Calculate the real discount rate using the nominal discount rate and 
+                # inflation rate
                 real_discount_rate =
                     (scenario.nominal_discount_rate - scenario.inflation_rate) /
                     (1 + scenario.inflation_rate)
+
+                # Use the calculated real discount rate
                 JuMP.add_to_expression!(
                     obj,
                     -1 * (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
@@ -115,6 +126,7 @@ function define_storage_investment_tax_credit!(
                 )
             end
         else
+            # Use the user-defined real discount rate
             JuMP.add_to_expression!(
                 obj,
                 -1 * (
