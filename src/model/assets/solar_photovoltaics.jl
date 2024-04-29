@@ -64,10 +64,10 @@ function define_solar_pv_variables!(
 
     # Set the PV system capacity variable, if performing capacity expansion
     if (scenario.problem_type == "CEM") & solar.make_investment
-        if isnothing(solar.maximum_system_capacity)
+        if isnothing(solar.maximum_power_capacity)
             JuMP.@variable(m, pv_capacity >= 0)
         else
-            JuMP.@variable(m, 0 <= pv_capacity <= solar.maximum_system_capacity)
+            JuMP.@variable(m, 0 <= pv_capacity <= solar.maximum_power_capacity)
         end
     end
 end
