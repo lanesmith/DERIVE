@@ -10,7 +10,7 @@ function read_solar(filepath::String)::Solar
         "enabled" => false,
         "capacity_factor_profile" => nothing,
         "power_capacity" => nothing,
-        "maximum_system_capacity" => nothing,
+        "maximum_power_capacity" => nothing,
         "module_manufacturer" => nothing,
         "module_name" => nothing,
         "module_nominal_power" => nothing,
@@ -23,15 +23,17 @@ function read_solar(filepath::String)::Solar
         "module_noct" => nothing,
         "module_number_of_cells" => nothing,
         "module_cell_material" => nothing,
-        "pv_capital_cost" => nothing,
+        "nonexport" => false,
+        "make_investment" => false,
+        "capital_cost" => nothing,
+        "fixed_om_cost" => nothing,
         "collector_azimuth" => nothing,
         "tilt_angle" => nothing,
         "ground_reflectance" => "default",
         "tracker" => "fixed",
-        "tracker_capital_cost" => nothing,
-        "inverter_eff" => nothing,
-        "inverter_capital_cost" => nothing,
+        "inverter_eff" => 1.0,
         "lifespan" => nothing,
+        "investment_tax_credit" => 0.0,
     )
 
     # Try loading the solar parameters
@@ -106,6 +108,29 @@ function read_solar(filepath::String)::Solar
                 ErrorException(
                     "Solar is enabled, but not enough information is provided to build " *
                     "the capacity factor profile. Please try again.",
+                ),
+            )
+        end
+    end
+
+    # Check the provided efficiency and investment tax credit parameters
+    for k in ["inverter_eff", "investment_tax_credit"]
+        if solar[k] > 1.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is greater than 1. Please only use values between 0 and " *
+                    "1, inclusive.",
+                ),
+            )
+        elseif solar[k] < 0.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    k *
+                    " parameter is less than 0. Please only use values between 0 and 1, " *
+                    "inclusive.",
                 ),
             )
         end

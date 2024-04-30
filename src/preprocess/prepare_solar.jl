@@ -1,11 +1,17 @@
 """
-    calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
+    calculate_total_irradiance_profile(
+        scenario::Scenario,
+        solar::Solar,
+    )::Vector{Float64}
 
 Calculates the irradiance as observed by the simulated solar photovoltaic (PV) system. 
 Irradiance is based on weather data and the position of the PV array. Equations are 
 obtained from 'Renewable and Efficient Electric Power Systems, 2nd Edition' by Masters.
 """
-function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
+function calculate_total_irradiance_profile(
+    scenario::Scenario,
+    solar::Solar,
+)::Vector{Float64}
     # Create array of day numbers that correspond with each time stamp
     n = Dates.dayofyear.(scenario.weather_data[!, "timestamp"])
 
@@ -23,7 +29,9 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     )
 
     # Create array of minutes that correspond with each time stamp for each day
-    t = Dates.hour.(scenario.weather_data[!, "timestamp"]) .* 60
+    t =
+        60 .* Dates.hour.(scenario.weather_data[!, "timestamp"]) .+
+        Dates.minute.(scenario.weather_data[!, "timestamp"])
 
     # Convert clock time to solar time
     b = (360 / 364) .* (n .- 81)
@@ -100,19 +108,19 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
 
     # Calculate the diffuse insolation on the collector
     if solar.tracker == "fixed"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     elseif solar.tracker == "two-axis"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, north-south"
-        diffuse_insoltation =
+        diffuse_insolation =
             scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, horizontal, east-west"
-        diffuse_insoltation =
+        diffuse_insolation =
             scenario.weather_data[!, "DHI"] .* ((1 .+ (sind.(β) ./ cosθ)) ./ 2)
     elseif solar.tracker == "one-axis, polar-mount, north-south"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 .+ sind.(β .- δ)) ./ 2)
     elseif solar.tracker == "one-axis, vertical-mount"
-        diffuse_insoltation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
+        diffuse_insolation = scenario.weather_data[!, "DHI"] .* ((1 + cosd(Σ)) / 2)
     end
 
     # Define the ground reflectance coefficient
@@ -150,7 +158,7 @@ function calculate_total_irradiance_profile(scenario::Scenario, solar::Solar)
     end
 
     # Return the total irradiance on the collector
-    return beam_insolation .+ diffuse_insoltation .+ reflected_insolation
+    return beam_insolation .+ diffuse_insolation .+ reflected_insolation
 end
 
 """
@@ -158,7 +166,7 @@ end
         scenario::Scenario, 
         solar::Solar, 
         irradiance::Vector,
-    )
+    )::Matrix{Float64}
 
 Calculate the power generation profile for the specified PV system using the specified 
 weather data and a supported solution method. The power generation profile is intended to 
@@ -168,7 +176,7 @@ function calculate_solar_generation_profile(
     scenario::Scenario,
     solar::Solar,
     irradiance::Vector,
-)
+)::Matrix{Float64}
     # Initialize a dictionary to hold the constants needed for calculating the I-V curve
     constants = Dict{String,Any}()
 
@@ -221,7 +229,7 @@ end
         temperature::Vector, 
         constants::Dict, 
         num_iv_points::Int64=1000,
-    )
+    )::Tuple{Matrix{Float64},Matrix{Float64},Matrix{Float64}}
 
 Solve for the PV system's I-V curve, and subsequently the power generation profile, using 
 the method outlined in De Soto et al., 'Improvement and validation of a model for 
@@ -237,7 +245,7 @@ function desoto_iv_curve_method(
     temperature::Vector,
     constants::Dict{String,Any},
     num_iv_points::Int64=1000,
-)
+)::Tuple{Matrix{Float64},Matrix{Float64},Matrix{Float64}}
     # Calculate the photo-induced current
     nom_ipv = solar.module_sc_current
     ipv =
@@ -303,7 +311,7 @@ function desoto_iv_curve_method(
         ) + (2 * (solar.module_rated_voltage / (a * nom_vt))) -
         (solar.module_rated_voltage^2 / (a^2 * nom_vt^2))
 
-    # Calculate the sreies and shunt resistances
+    # Calculate the series and shunt resistances
     rs = (x * a * nom_vt - solar.module_rated_voltage) / solar.module_rated_current
     nom_rp =
         (x * a * nom_vt) / (nom_ipv - solar.module_rated_current - nom_i0 * (exp(x) - 1))
@@ -320,13 +328,19 @@ function desoto_iv_curve_method(
             solar.module_voltage_temp_coeff * (temperature[j] - constants["nom_temp"])
         v[j, :] = collect(0:(voc / (num_iv_points - 1)):voc)
 
-        # Create a change of variable to solve for the output current explicitly
+        # Calculate the output current
         if (rp[j] == Inf) & (ipv[j] == 0)
+            # Create a change of variable to solve for the output current explicitly
             # Take the limit of θ[j, :] as rp[j] -> Inf
             θ[j, :] =
                 ((rs .* i0[j]) ./ (a .* vt[j])) .*
                 exp.((rs .* i0[j] .+ v[j, :]) ./ (a .* vt[j]))
+
+            # Calculate the output current
+            # Take the limit of i[j, :] as rp[j] -> Inf
+            i[j, :] = i0[j] .- ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
         else
+            # Create a change of variable to solve for the output current explicitly
             θ[j, :] =
                 (
                     rs .* rp[j] .* i0[j] .*
@@ -335,13 +349,8 @@ function desoto_iv_curve_method(
                         (a * vt[j] * (rs + rp[j])),
                     )
                 ) ./ ((rs + rp[j]) * a * vt[j])
-        end
 
-        # Calculate the output current
-        if (rp[j] == Inf) & (ipv[j] == 0)
-            # Take the limit of i[j, :] as rp[j] -> Inf
-            i[j, :] = i0[j] .- ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
-        else
+            # Calculate the output current
             i[j, :] =
                 ((rp[j] .* (ipv[j] + i0[j]) .- v[j, :]) ./ (rs + rp[j])) .-
                 ((a .* vt[j] .* lambertw.(θ[j, :])) ./ rs)
@@ -397,14 +406,14 @@ function create_solar_capacity_factor_profile(scenario::Scenario, solar::Solar):
 end
 
 """
-    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
+    lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)::Float64
 
 Solve the principal branch of the Lambert W function using Halley's method. Assume that 
 the input, z, is real and sufficiently greater than the branch point of -1/e. Equations 
 are obtained from Corless et. al, 'On the Lambert W Function,' Advances in Computational 
 Mathematics, 1996.
 """
-function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)
+function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)::Float64
     # Check that the input, z, is sufficiently greater than the branch point
     if z < -1 / exp(1)
         throw(

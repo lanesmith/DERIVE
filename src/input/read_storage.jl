@@ -9,20 +9,20 @@ function read_storage(filepath::String)::Storage
     storage = Dict{String,Any}(
         "enabled" => false,
         "power_capacity" => nothing,
-        "energy_capacity" => nothing,
         "duration" => nothing,
         "maximum_power_capacity" => nothing,
-        "maximum_energy_capacity" => nothing,
         "soc_min" => 0.0,
         "soc_max" => 1.0,
         "soc_initial" => 0.5,
-        "charge_eff" => 1.0,
-        "discharge_eff" => 1.0,
+        "roundtrip_eff" => 1.0,
         "loss_rate" => 0.0,
         "nonexport" => true,
         "nonimport" => false,
-        "capital_cost" => nothing,
+        "make_investment" => false,
+        "power_capital_cost" => nothing,
+        "fixed_om_cost" => nothing,
         "lifespan" => nothing,
+        "investment_tax_credit" => 0.0,
     )
 
     # Try loading the storage parameters
@@ -55,22 +55,24 @@ function read_storage(filepath::String)::Storage
         )
     end
 
-    # Check if both the energy_capacity and duration parameters have been provided
-    if !isnothing(storage["duration"])
-        if !isnothing(storage["energy_capacity"])
-            @warn(
-                "Both the energy_capacity and duration parameters have been provided. " *
-                "Will default to using the energy_capacity parameter."
-            )
-        else
-            # If only duration is provided, set energy_capacity accordingly
-            storage["energy_capacity"] = storage["duration"] * storage["power_capacity"]
-        end
+    # Check if the duration parameter has been provided
+    if isnothing(storage["duration"])
+        throw(
+            ErrorException(
+                "The storage duration parameter has not been provided. Please try again.",
+            ),
+        )
     end
 
-    # Check the provided state-of-charge and efficiency parameters
-    for k in
-        ["soc_min", "soc_max", "soc_initial", "charge_eff", "discharge_eff", "loss_rate"]
+    # Check the provided state-of-charge, efficiency, and investment tax credit parameters
+    for k in [
+        "soc_min",
+        "soc_max",
+        "soc_initial",
+        "roundtrip_eff",
+        "loss_rate",
+        "investment_tax_credit",
+    ]
         if storage[k] > 1.0
             throw(
                 ErrorException(

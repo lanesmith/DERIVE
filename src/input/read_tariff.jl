@@ -22,13 +22,15 @@ function read_tariff(filepath::String)::Tariff
         "daily_demand_tou_rates" => nothing,
         "nem_enabled" => false,
         "nem_version" => 2,
-        "nem2_non_bypassable_charge" => nothing,
-        "nem3_profile" => nothing,
+        "nem_2_non_bypassable_charge" => nothing,
         "customer_charge" => Dict{String,Float64}("daily" => 0.0, "monthly" => 0.0),
         "energy_prices" => nothing,
         "demand_prices" => nothing,
         "demand_mask" => nothing,
         "nem_prices" => nothing,
+        "energy_charge_scaling" => 1.0,
+        "demand_charge_scaling" => 1.0,
+        "all_charge_scaling" => 1.0,
     )
 
     # Try loading the tariff parameters
@@ -140,14 +142,9 @@ function read_tariff(filepath::String)::Tariff
                                 :,
                             ],
                         )
-                            for h = (r[k * "_start"] + 1):r[k * "_end"]
-                                if h == 24
-                                    tariff[k * "_rates"][s][0]["rate"] = r[k * "_values"]
-                                    tariff[k * "_rates"][s][0]["label"] = r[k * "_labels"]
-                                else
-                                    tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
-                                    tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
-                                end
+                            for h = (r[k * "_start"]):(r[k * "_end"] - 1)
+                                tariff[k * "_rates"][s][h]["rate"] = r[k * "_values"]
+                                tariff[k * "_rates"][s][h]["label"] = r[k * "_labels"]
                             end
                         end
                     end
@@ -157,23 +154,44 @@ function read_tariff(filepath::String)::Tariff
     end
 
     # Try assigning the tiered energy rate information from the file
-    if !all(x -> x == "missing", tariff_information[!, "energy_tiered_levels"])
-        tariff["energy_tiered_rates"] = Dict{String,Dict}()
+    if !all(x -> x == "missing", tariff_information[!, "energy_tiered_lower_bounds"])
+        tariff["energy_tiered_rates"] = Dict{Int64,Dict}()
         for s in filter(
             x -> x != "missing",
             unique(tariff_information[!, "energy_tiered_seasons"]),
         )
-            tariff["energy_tiered_rates"][s] = Dict{String,Any}()
-            tariff["energy_tiered_rates"][s]["tiers"] =
-                tariff_information[tariff_information[!, "energy_tiered_seasons"] .== s, !][
-                    !,
-                    "energy_tiered_levels",
-                ]
-            tariff["energy_tiered_rates"][s]["price_adders"] =
-                tariff_information[tariff_information[!, "energy_tiered_seasons"] .== s, !][
-                    !,
-                    "energy_tiered_adders",
-                ]
+            energy_tiered_seasons_ids =
+                findall(x -> x == s, tariff_information[!, "energy_tiered_seasons"])
+            for m in tariff["months_by_season"][s]
+                tariff["energy_tiered_rates"][m] = Dict{Int64,Any}()
+                for i in eachindex(energy_tiered_seasons_ids)
+                    tariff["energy_tiered_rates"][m][i] = Dict{String,Any}()
+                    if i == length(energy_tiered_seasons_ids)
+                        tariff["energy_tiered_rates"][m][i]["bounds"] = [
+                            tariff_information[
+                                energy_tiered_seasons_ids[i],
+                                "energy_tiered_lower_bounds",
+                            ],
+                            Inf,
+                        ]
+                    else
+                        tariff["energy_tiered_rates"][m][i]["bounds"] = [
+                            tariff_information[
+                                energy_tiered_seasons_ids[i],
+                                "energy_tiered_lower_bounds",
+                            ],
+                            tariff_information[
+                                energy_tiered_seasons_ids[i + 1],
+                                "energy_tiered_lower_bounds",
+                            ],
+                        ]
+                    end
+                    tariff["energy_tiered_rates"][m][i]["price"] = tariff_information[
+                        energy_tiered_seasons_ids[i],
+                        "energy_tiered_adders",
+                    ]
+                end
+            end
         end
     end
 
@@ -186,7 +204,7 @@ function read_tariff(filepath::String)::Tariff
     if tariff["nem_enabled"]
         if tariff["nem_version"] == 2
             # Check that a non-bypassable charge is provided under NEM 2.0
-            if isnothing(tariff["nem2_non_bypassable_charge"])
+            if isnothing(tariff["nem_2_non_bypassable_charge"])
                 throw(
                     ErrorException(
                         "No non-bypassable charge, which is needed under NEM 2.0, was " *
@@ -195,15 +213,45 @@ function read_tariff(filepath::String)::Tariff
                 )
             end
         elseif tariff["nem_version"] == 3
-            # Check that values from an avoided cost calculator are provided under NEM 3.0
-            if isnothing(tariff["nem3_profile"])
+            # Check that the directory of NEM 3.0 component prices exists
+            if isdir(joinpath(filepath, "nem_3_data"))
+                if length(readdir(joinpath(filepath, "nem_3_data"))) == 0
+                    throw(
+                        ErrorException(
+                            "There are no NEM 3.0 component price data files located in " *
+                            "the expected directory. Please try again.",
+                        ),
+                    )
+                end
+            else
                 throw(
                     ErrorException(
-                        "No profile of values from an avoided cost calculator, which is " *
-                        "needed under NEM 3.0, was provided. Please try again.",
+                        "There is no directory containing NEM 3.0 component price data. " *
+                        "Please try again.",
                     ),
                 )
             end
+        end
+    end
+
+    # Check that the scaling terms are not less than or equal to zero
+    for p in ["energy_charge_scaling", "demand_charge_scaling", "all_charge_scaling"]
+        if tariff[p] < 0.0
+            throw(
+                ErrorException(
+                    "The provided " *
+                    p *
+                    " parameter is negative, which does not make sense for price-based " *
+                    "terms. Please try again.",
+                ),
+            )
+        end
+    end
+
+    # Update the scaling terms depending on the all_charge_scaling term
+    if tariff["all_charge_scaling"] != 1.0
+        for p in ["energy_charge_scaling", "demand_charge_scaling"]
+            tariff[p] = 1.0
         end
     end
 

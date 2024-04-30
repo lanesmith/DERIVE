@@ -24,12 +24,12 @@ function define_solar_photovoltaic_model!(
     JuMP.add_to_expression!.(m[:d_net], -1 .* m[:p_pv_btm])
 
     # Update the expression for total exports, if net energy metering is enabled
-    if tariff.nem_enabled
+    if tariff.nem_enabled & !solar.nonexport
         JuMP.add_to_expression!.(m[:p_exports], m[:p_pv_exp])
     end
 
     # Create contraints related to solar PV
-    define_solar_pv_generation_upper_bound!(m, scenario, solar, sets)
+    define_solar_pv_generation_upper_bound!(m, scenario, tariff, solar, sets)
 end
 
 """
@@ -58,16 +58,16 @@ function define_solar_pv_variables!(
     JuMP.@variable(m, p_pv_btm[t in 1:(sets.num_time_steps)] >= 0)
 
     # Set the solar PV power generation variables for export use (e.g., for net metering)
-    if tariff.nem_enabled
+    if tariff.nem_enabled & !solar.nonexport
         JuMP.@variable(m, p_pv_exp[t in 1:(sets.num_time_steps)] >= 0)
     end
 
     # Set the PV system capacity variable, if performing capacity expansion
-    if scenario.problem_type == "CEM"
-        if isnothing(solar.maximum_system_capacity)
+    if (scenario.problem_type == "CEM") & solar.make_investment
+        if isnothing(solar.maximum_power_capacity)
             JuMP.@variable(m, pv_capacity >= 0)
         else
-            JuMP.@variable(m, 0 <= pv_capacity <= solar.maximum_system_capacity)
+            JuMP.@variable(m, 0 <= pv_capacity <= solar.maximum_power_capacity)
         end
     end
 end
@@ -76,6 +76,7 @@ end
     define_solar_pv_generation_upper_bound!(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
         solar::Solar,
         sets::Sets,
     )
@@ -90,23 +91,128 @@ variable.
 function define_solar_pv_generation_upper_bound!(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
     solar::Solar,
     sets::Sets,
 )
     # Set the upper bound for the PV power generation variable
-    if scenario.problem_type == "CEM"
-        JuMP.@constraint(
-            m,
-            pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] * m[:pv_capacity]
+    if (scenario.problem_type == "CEM") & solar.make_investment
+        if tariff.nem_enabled & !solar.nonexport
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                m[:pv_capacity] *
+                solar.inverter_eff
+            )
+        else
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                m[:pv_capacity] *
+                solar.inverter_eff
+            )
+        end
+    else
+        if tariff.nem_enabled & !solar.nonexport
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                solar.power_capacity *
+                solar.inverter_eff
+            )
+        else
+            JuMP.@constraint(
+                m,
+                pv_upper_bound[t in 1:(sets.num_time_steps)],
+                m[:p_pv_btm][t] <=
+                sets.solar_capacity_factor_profile[t] *
+                solar.power_capacity *
+                solar.inverter_eff
+            )
+        end
+    end
+end
+
+"""
+    define_solar_pv_capital_cost_objective!(
+        m::JuMP.Model,
+        obj::JuMP.AffExpr,
+        scenario::Scenario,
+        solar::Solar,
+    )
+
+Adds the capital costs and fixed operation and maintenance (O&M) costs associated with 
+building a solar photovoltaic (PV) system to the objective function. Captial costs 
+associated with the power capacity of the PV system are required. Including fixed O&M costs 
+is not required.
+"""
+function define_solar_pv_capital_cost_objective!(
+    m::JuMP.Model,
+    obj::JuMP.AffExpr,
+    scenario::Scenario,
+    solar::Solar,
+)
+    # Add the amortized capital cost of building the determined PV system to the objective 
+    # function
+    if isnothing(solar.capital_cost)
+        throw(
+            ErrorException(
+                "No capital cost is specified for the generation capacity of " *
+                "solar PVs. Please try again.",
+            ),
         )
     else
-        JuMP.@constraint(
-            m,
-            pv_upper_bound[t in 1:(sets.num_time_steps)],
-            m[:p_pv_btm][t] + m[:p_pv_exp][t] <=
-            sets.solar_capacity_factor_profile[t] * solar.power_capacity
-        )
+        if isnothing(scenario.real_discount_rate)
+            if isnothing(scenario.nominal_discount_rate) |
+               isnothing(scenario.inflation_rate)
+                # Use a simple amortization if the necessary information is not provided
+                JuMP.add_to_expression!(
+                    obj,
+                    solar.capital_cost * m[:pv_capacity] / solar.lifespan,
+                )
+            else
+                # Calculate the real discount rate using the nominal discount rate and 
+                # inflation rate
+                real_discount_rate =
+                    (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                    (1 + scenario.inflation_rate)
+
+                # Use the calculated real discount rate
+                JuMP.add_to_expression!(
+                    obj,
+                    (
+                        (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                        ((1 + real_discount_rate)^solar.lifespan - 1)
+                    ) *
+                    solar.capital_cost *
+                    m[:pv_capacity],
+                )
+            end
+        else
+            # Use the user-defined real discount rate
+            JuMP.add_to_expression!(
+                obj,
+                (
+                    (
+                        scenario.real_discount_rate *
+                        (1 + scenario.real_discount_rate)^solar.lifespan
+                    ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                ) *
+                solar.capital_cost *
+                m[:pv_capacity],
+            )
+        end
+    end
+
+    # Add the annual fixed operation and maintenance (O&M) cost associated with building 
+    # the determined PV system to the objective function
+    if !isnothing(solar.fixed_om_cost)
+        JuMP.add_to_expression!(obj, solar.fixed_om_cost * m[:pv_capacity])
     end
 end
