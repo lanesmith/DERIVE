@@ -413,7 +413,7 @@ function define_bes_capital_cost_objective!(
 )
     # Add the amortized capital cost associated with the power rating of building the 
     # determined battery energy storage system to the objective function
-    if isnothing(storage.power_capacity_cost)
+    if isnothing(storage.power_capital_cost)
         throw(
             ErrorException(
                 "No capital cost is specified for the power capacity of battery " *
