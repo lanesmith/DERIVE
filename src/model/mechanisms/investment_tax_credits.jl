@@ -35,8 +35,11 @@ function define_solar_investment_tax_credit!(
             # Use the calculated real discount rate
             JuMP.add_to_expression!(
                 obj,
-                -1 * (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
-                ((1 + real_discount_rate)^solar.lifespan - 1) *
+                -1 *
+                (
+                    (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                    ((1 + real_discount_rate)^solar.lifespan - 1)
+                ) *
                 solar.investment_tax_credit *
                 solar.capital_cost *
                 m[:pv_capacity],
@@ -46,10 +49,13 @@ function define_solar_investment_tax_credit!(
         # Use the user-defined real discount rate
         JuMP.add_to_expression!(
             obj,
-            -1 * (
-                scenario.real_discount_rate *
-                (1 + scenario.real_discount_rate)^solar.lifespan
-            ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1) *
+            -1 *
+            (
+                (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^solar.lifespan
+                ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+            ) *
             solar.investment_tax_credit *
             solar.capital_cost *
             m[:pv_capacity],
@@ -97,8 +103,11 @@ function define_storage_investment_tax_credit!(
             # Use the calculated real discount rate
             JuMP.add_to_expression!(
                 obj,
-                -1 * (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
-                ((1 + real_discount_rate)^storage.lifespan - 1) *
+                -1 *
+                (
+                    (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
+                    ((1 + real_discount_rate)^storage.lifespan - 1)
+                ) *
                 storage.investment_tax_credit *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
@@ -108,10 +117,13 @@ function define_storage_investment_tax_credit!(
         # Use the user-defined real discount rate
         JuMP.add_to_expression!(
             obj,
-            -1 * (
-                scenario.real_discount_rate *
-                (1 + scenario.real_discount_rate)^storage.lifespan
-            ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1) *
+            -1 *
+            (
+                (
+                    scenario.real_discount_rate *
+                    (1 + scenario.real_discount_rate)^storage.lifespan
+                ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+            ) *
             storage.investment_tax_credit *
             storage.power_capital_cost *
             m[:bes_power_capacity],

@@ -186,8 +186,10 @@ function define_solar_pv_capital_cost_objective!(
                 # Use the calculated real discount rate
                 JuMP.add_to_expression!(
                     obj,
-                    (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
-                    ((1 + real_discount_rate)^solar.lifespan - 1) *
+                    (
+                        (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                        ((1 + real_discount_rate)^solar.lifespan - 1)
+                    ) *
                     solar.capital_cost *
                     m[:pv_capacity],
                 )
@@ -197,9 +199,11 @@ function define_solar_pv_capital_cost_objective!(
             JuMP.add_to_expression!(
                 obj,
                 (
-                    scenario.real_discount_rate *
-                    (1 + scenario.real_discount_rate)^solar.lifespan
-                ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1) *
+                    (
+                        scenario.real_discount_rate *
+                        (1 + scenario.real_discount_rate)^solar.lifespan
+                    ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                ) *
                 solar.capital_cost *
                 m[:pv_capacity],
             )

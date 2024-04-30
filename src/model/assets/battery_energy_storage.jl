@@ -439,8 +439,10 @@ function define_bes_capital_cost_objective!(
                 # Use the calculated real discount rate
                 JuMP.add_to_expression!(
                     obj,
-                    (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
-                    ((1 + real_discount_rate)^storage.lifespan - 1) *
+                    (
+                        (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
+                        ((1 + real_discount_rate)^storage.lifespan - 1)
+                    ) *
                     storage.power_capital_cost *
                     m[:bes_power_capacity],
                 )
@@ -450,9 +452,11 @@ function define_bes_capital_cost_objective!(
             JuMP.add_to_expression!(
                 obj,
                 (
-                    scenario.real_discount_rate *
-                    (1 + scenario.real_discount_rate)^storage.lifespan
-                ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1) *
+                    (
+                        scenario.real_discount_rate *
+                        (1 + scenario.real_discount_rate)^storage.lifespan
+                    ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+                ) *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
             )
