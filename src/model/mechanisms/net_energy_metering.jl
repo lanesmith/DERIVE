@@ -99,7 +99,6 @@ end
 """
     define_pv_capacity_and_exports_linkage!(
         m::JuMP.Model,
-        scenario::Scenario,
         solar::Solar,
         storage::Storage,
         sets::Sets,
@@ -116,19 +115,12 @@ on the total exports expression.
 """
 function define_pv_capacity_and_exports_linkage!(
     m::JuMP.Model,
-    scenario::Scenario,
     solar::Solar,
     storage::Storage,
     sets::Sets,
 )
     # Define the binary variable that indicates if PV capacity is less than or equal to zero
-    JuMP.@variable(m, ζ_pv, binary = scenario.binary_pv_capacity_and_exports_linkage,)
-
-    # Add bounds to the indicator variable if it is linear instead of binary
-    if !scenario.binary_pv_capacity_and_exports_linkage
-        JuMP.@constraint(m, pv_capacity_inidcator_lower_bound, ζ_pv >= 0)
-        JuMP.@constraint(m, pv_capacity_inidcator_upper_bound, ζ_pv <= 1)
-    end
+    JuMP.@variable(m, ζ_pv, binary = true)
 
     # Define the constraint that defines the indicator variable    
     JuMP.@constraint(

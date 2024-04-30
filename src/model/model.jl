@@ -180,7 +180,7 @@ function build_optimization_model(
         end
 
         # Include the constraint
-        define_pv_capacity_and_exports_linkage!(m, scenario, solar, storage, sets)
+        define_pv_capacity_and_exports_linkage!(m, solar, storage, sets)
     end
 
     # Define the objective function of the optimization model
