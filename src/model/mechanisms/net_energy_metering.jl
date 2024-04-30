@@ -47,57 +47,53 @@ function define_net_demand_and_exports_linkage!(
     storage::Storage,
     sets::Sets,
 )
-    # Define the binary variable that indicates if net demand is less than or equal to zero
-    JuMP.@variable(
-        m,
-        ζ_net[t in 1:(sets.num_time_steps)],
-        binary = scenario.binary_net_demand_and_exports_linkage,
-    )
+    # Determine the time steps in which export prices are greater than energy prices
+    time_steps_subset =
+        filter(t -> sets.nem_prices[t] > sets.energy_prices[t], 1:(sets.num_time_steps))
 
-    # Add bounds to the indicator variable if it is linear instead of binary
-    if !scenario.binary_net_demand_and_exports_linkage
+    if !isempty(time_steps_subset)
+        # Define the mapping between the indicator variable indices and the other 
+        # time-related parameters
+        time_mapping = Dict{Int64,Int64}(
+            t => time_steps_subset[t] for t in eachindex(time_steps_subset)
+        )
+
+        # Define the binary variable that indicates if net demand is less than or equal to zero
+        JuMP.@variable(m, ζ_net[t in eachindex(time_steps_subset)], binary = true)
+
+        # Define the constraint that defines the indicator variable    
         JuMP.@constraint(
             m,
-            net_demand_inidcator_lower_bound[t in 1:(sets.num_time_steps)],
-            ζ_net[t] >= 0
+            net_demand_and_exports_linkage_constraint[t in eachindex(time_steps_subset)],
+            ζ_net[t] => {m[:d_net][time_mapping[t]] <= 0},
         )
+
+        # Define the total potential exports capacity
+        p_exports_ub = 0
+        if solar.enabled
+            if (scenario.problem_type == "CEM") & solar.make_investment
+                p_exports_ub += solar.maximum_power_capacity
+            else
+                p_exports_ub += solar.power_capacity
+            end
+        end
+        if storage.enabled & !storage.nonexport
+            if (scenario.problem_type == "CEM") & storage.make_investment
+                p_exports_ub += storage.maximum_power_capacity
+            else
+                p_exports_ub += storage.power_capacity
+            end
+        end
+
+        # Define the constraint that prevents exports if net demand does not equal zero
         JuMP.@constraint(
             m,
-            net_demand_inidcator_upper_bound[t in 1:(sets.num_time_steps)],
-            ζ_net[t] <= 1
+            exports_considering_net_demand_upper_bound_constraint[t in eachindex(
+                time_steps_subset,
+            )],
+            m[:p_exports][time_mapping[t]] <= ζ_net[t] * p_exports_ub,
         )
     end
-
-    # Define the constraint that defines the indicator variable    
-    JuMP.@constraint(
-        m,
-        net_demand_and_exports_linkage_constraint[t in 1:(sets.num_time_steps)],
-        ζ_net[t] => {m[:d_net][t] <= 0},
-    )
-
-    # Define the total potential exports capacity
-    p_exports_ub = 0
-    if solar.enabled
-        if (scenario.problem_type == "CEM") & solar.make_investment
-            p_exports_ub += solar.maximum_power_capacity
-        else
-            p_exports_ub += solar.power_capacity
-        end
-    end
-    if storage.enabled & !storage.nonexport
-        if (scenario.problem_type == "CEM") & storage.make_investment
-            p_exports_ub += storage.maximum_power_capacity
-        else
-            p_exports_ub += storage.power_capacity
-        end
-    end
-
-    # Define the constraint that prevents exports if net demand does not equal zero
-    JuMP.@constraint(
-        m,
-        exports_considering_net_demand_upper_bound_constraint[t in 1:(sets.num_time_steps)],
-        m[:p_exports][t] <= ζ_net[t] * p_exports_ub,
-    )
 end
 
 """
