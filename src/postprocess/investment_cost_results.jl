@@ -74,8 +74,44 @@ function store_investment_cost_results(
             investment_cost_results["solar_itc_percent"] = solar.investment_tax_credit
 
             # Store the total solar ITC
-            investment_cost_results["solar_itc_amount"] =
-                solar.investment_tax_credit * JuMP.value(m[:pv_capacity])
+            investment_cost_results["total_solar_itc_amount"] =
+                solar.investment_tax_credit *
+                solar.capital_cost *
+                JuMP.value(m[:pv_capacity])
+
+            # Store the amortized solar ITC
+            if isnothing(scenario.real_discount_rate)
+                if isnothing(scenario.nominal_discount_rate) |
+                   isnothing(scenario.inflation_rate)
+                    investment_cost_results["amortized_solar_ITC_amount"] =
+                        solar.investment_tax_credit *
+                        solar.capital_cost *
+                        JuMP.value(m[:pv_capacity]) / solar.lifespan
+                else
+                    real_discount_rate =
+                        (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                        (1 + scenario.inflation_rate)
+                    investment_cost_results["amortized_solar_ITC_amount"] =
+                        (
+                            (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
+                            ((1 + real_discount_rate)^solar.lifespan - 1)
+                        ) *
+                        solar.investment_tax_credit *
+                        solar.capital_cost *
+                        JuMP.value(m[:pv_capacity])
+                end
+            else
+                investment_cost_results["amortized_solar_ITC_amount"] =
+                    (
+                        (
+                            scenario.real_discount_rate *
+                            (1 + scenario.real_discount_rate)^solar.lifespan
+                        ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                    ) *
+                    solar.investment_tax_credit *
+                    solar.capital_cost *
+                    JuMP.value(m[:pv_capacity])
+            end
         end
     end
 
@@ -136,8 +172,46 @@ function store_investment_cost_results(
             investment_cost_results["storage_itc_percent"] = storage.investment_tax_credit
 
             # Store the total storage ITC
-            investment_cost_results["storage_itc_amount"] =
-                storage.investment_tax_credit * JuMP.value(m[:bes_power_capacity])
+            investment_cost_results["total_storage_itc_amount"] =
+                storage.investment_tax_credit *
+                storage.power_capital_cost *
+                JuMP.value(m[:bes_power_capacity])
+
+            # Store the amortized storage ITC
+            if isnothing(scenario.real_discount_rate)
+                if isnothing(scenario.nominal_discount_rate) |
+                   isnothing(scenario.inflation_rate)
+                    investment_cost_results["amortized_storage_ITC_amount"] =
+                        storage.investment_tax_credit *
+                        storage.power_capital_cost *
+                        JuMP.value(m[:bes_power_capacity]) / storage.lifespan
+                else
+                    real_discount_rate =
+                        (scenario.nominal_discount_rate - scenario.inflation_rate) /
+                        (1 + scenario.inflation_rate)
+                    investment_cost_results["amortized_storage_ITC_amount"] =
+                        (
+                            (
+                                real_discount_rate *
+                                (1 + real_discount_rate)^storage.lifespan
+                            ) / ((1 + real_discount_rate)^storage.lifespan - 1)
+                        ) *
+                        storage.investment_tax_credit *
+                        storage.power_capital_cost *
+                        JuMP.value(m[:bes_power_capacity])
+                end
+            else
+                investment_cost_results["amortized_storage_ITC_amount"] =
+                    (
+                        (
+                            scenario.real_discount_rate *
+                            (1 + scenario.real_discount_rate)^storage.lifespan
+                        ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+                    ) *
+                    storage.investment_tax_credit *
+                    storage.power_capital_cost *
+                    JuMP.value(m[:bes_power_capacity])
+            end
         end
     end
 
