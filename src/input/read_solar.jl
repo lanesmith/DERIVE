@@ -33,7 +33,7 @@ function read_solar(filepath::String)::Solar
         "tracker" => "fixed",
         "inverter_eff" => 1.0,
         "lifespan" => nothing,
-        "investment_tax_credit" => 0.3,
+        "investment_tax_credit" => 0.0,
     )
 
     # Try loading the solar parameters

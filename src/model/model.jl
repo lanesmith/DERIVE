@@ -59,7 +59,9 @@ function define_objective_function!(
             define_solar_pv_capital_cost_objective!(m, obj, scenario, solar)
 
             # Add in solar PV investment tax credit (ITC), if applicable
-            define_solar_investment_tax_credit!(m, obj, scenario, solar)
+            if solar.investment_tax_credit > 0.0
+                define_solar_investment_tax_credit!(m, obj, scenario, solar)
+            end
         end
 
         # Add in capital costs associated with battery energy storage (BES), if applicable
@@ -67,7 +69,9 @@ function define_objective_function!(
             define_bes_capital_cost_objective!(m, obj, scenario, storage)
 
             # Add in BES ITC, if applicable
-            define_storage_investment_tax_credit!(m, obj, scenario, storage)
+            if storage.investment_tax_credit > 0.0
+                define_storage_investment_tax_credit!(m, obj, scenario, storage)
+            end
         end
     end
 

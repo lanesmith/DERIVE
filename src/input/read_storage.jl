@@ -22,7 +22,7 @@ function read_storage(filepath::String)::Storage
         "power_capital_cost" => nothing,
         "fixed_om_cost" => nothing,
         "lifespan" => nothing,
-        "investment_tax_credit" => 0.3,
+        "investment_tax_credit" => 0.0,
     )
 
     # Try loading the storage parameters
