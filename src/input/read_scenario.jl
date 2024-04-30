@@ -97,8 +97,7 @@ function read_scenario(filepath::String)::Scenario
     end
 
     # Check the optimization horizon
-    if lowercase(scenario["optimization_horizon"]) in
-       ["day", "month", "year", "multiple_years"]
+    if lowercase(scenario["optimization_horizon"]) in ["day", "month", "year"]
         scenario["optimization_horizon"] = uppercase(scenario["optimization_horizon"])
     else
         throw(

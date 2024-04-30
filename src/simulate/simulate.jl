@@ -98,22 +98,9 @@ function solve_problem(
                 output_filepath,
             )
         end
-    elseif (scenario.problem_type == "CEM") &
-           (scenario.optimization_horizon in ["YEAR", "MULTIPLE_YEARS"])
+    elseif (scenario.problem_type == "CEM") & (scenario.optimization_horizon in ["YEAR"])
         if scenario.optimization_horizon == "YEAR"
             results["time-series"], results["investment"] = simulate_by_year(
-                scenario,
-                tariff,
-                market,
-                incentives,
-                demand,
-                solar,
-                storage,
-                results["time-series"],
-                output_filepath,
-            )
-        elseif scenario.optimization_horizon == "MULTIPLE_YEARS"
-            results["time-series"], results["investment"] = simulate_over_multiple_years(
                 scenario,
                 tariff,
                 market,
