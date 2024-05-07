@@ -105,7 +105,7 @@ function build_optimization_model(
     storage::Storage,
     sets::Sets,
 )::JuMP.Model
-    # Determine the solver
+    # Determine the optimizer
     if scenario.optimization_solver == "GLPK"
         s = GLPK.Optimizer
     elseif scenario.optimization_solver == "GUROBI"
@@ -116,6 +116,14 @@ function build_optimization_model(
 
     # Build initial JuMP optimization model
     m = JuMP.Model(s)
+
+    # Set some optimizer attributes, if enabled
+    if scenario.specify_optimizer_attributes
+        optimizer_attributes = read_optimizer_attributes(scenario.filepath)
+        for (k, v) in optimizer_attributes
+            JuMP.set_optimizer_attribute(m, k, v)
+        end
+    end
 
     # Define demand-related variables and expressions
     define_demand_variables!(m, tariff, solar, sets)

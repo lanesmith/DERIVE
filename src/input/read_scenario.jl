@@ -6,6 +6,7 @@ Load scenario parameters from .csv file and return them in a Scenario struct.
 function read_scenario(filepath::String)::Scenario
     # Initialize scenario struct
     scenario = Dict{String,Any}(
+        "filepath" => filepath,
         "problem_type" => nothing,
         "interval_length" => "1hour",
         "optimization_horizon" => "month",
@@ -21,6 +22,7 @@ function read_scenario(filepath::String)::Scenario
         "year" => Dates.year(Dates.now()),
         "binary_net_demand_and_exports_linkage" => false,
         "binary_pv_capacity_and_exports_linkage" => false,
+        "specify_optimizer_attributes" => false,
     )
 
     # Try loading the scenario parameters

@@ -18,6 +18,7 @@ include("input/read_incentives.jl")
 include("input/read_demand.jl")
 include("input/read_solar.jl")
 include("input/read_storage.jl")
+include("input/read_optimizer_attributes.jl")
 
 # Include the ability to prepare input data
 include("preprocess/prepare_demand.jl")

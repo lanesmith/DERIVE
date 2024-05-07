@@ -4,6 +4,7 @@
 A struct to hold information about the specific scenario under investigation.
 """
 Base.@kwdef struct Scenario
+    filepath::String
     problem_type::String
     interval_length::Int64
     optimization_horizon::String
@@ -19,6 +20,7 @@ Base.@kwdef struct Scenario
     year::Int64
     binary_net_demand_and_exports_linkage::Bool
     binary_pv_capacity_and_exports_linkage::Bool
+    specify_optimizer_attributes::Bool
 end
 
 """
