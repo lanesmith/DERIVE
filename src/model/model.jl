@@ -44,7 +44,7 @@ function define_objective_function!(
 
     # Add in variable cost associated with the simple shiftable demand model, if applicable
     if demand.simple_shift_enabled
-        define_shiftable_demand_variable_cost_objective!(m, obj, demand)
+        define_shiftable_demand_variable_cost_objective!(m, obj, scenario, demand)
     end
 
     # Add in variable cost associated with the sheddable demand model, if applicable
