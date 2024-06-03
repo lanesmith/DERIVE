@@ -74,9 +74,10 @@ function calculate_electricity_bill(
         bill_results["customer_charge"] = 0
         for (k, v) in tariff.customer_charge
             if k == "daily"
-                bill_results["customer_charge"] += Dates.daysinyear(scenario.year) * v
+                bill_results["customer_charge"] +=
+                    tariff.all_charge_scaling * Dates.daysinyear(scenario.year) * v
             elseif k == "monthly"
-                bill_results["customer_charge"] += 12 * v
+                bill_results["customer_charge"] += tariff.all_charge_scaling * 12 * v
             end
         end
 
