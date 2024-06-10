@@ -22,7 +22,7 @@ function read_tariff(filepath::String)::Tariff
         "daily_demand_tou_rates" => nothing,
         "nem_enabled" => false,
         "nem_version" => 2,
-        "nem_2_non_bypassable_charge" => nothing,
+        "non_bypassable_charge" => nothing,
         "customer_charge" => Dict{String,Float64}("daily" => 0.0, "monthly" => 0.0),
         "energy_prices" => nothing,
         "demand_prices" => nothing,
@@ -204,7 +204,7 @@ function read_tariff(filepath::String)::Tariff
     if tariff["nem_enabled"]
         if tariff["nem_version"] == 2
             # Check that a non-bypassable charge is provided under NEM 2.0
-            if isnothing(tariff["nem_2_non_bypassable_charge"])
+            if isnothing(tariff["non_bypassable_charge"])
                 throw(
                     ErrorException(
                         "No non-bypassable charge, which is needed under NEM 2.0, was " *

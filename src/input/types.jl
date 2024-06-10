@@ -43,7 +43,7 @@ Base.@kwdef struct Tariff
     daily_demand_tou_rates::Union{Dict,Nothing}
     nem_enabled::Bool
     nem_version::Int64
-    nem_2_non_bypassable_charge::Union{Float64,Nothing}
+    non_bypassable_charge::Union{Float64,Nothing}
     customer_charge::Dict
     energy_prices::Union{DataFrames.DataFrame,Nothing}
     demand_prices::Union{Dict,Nothing}

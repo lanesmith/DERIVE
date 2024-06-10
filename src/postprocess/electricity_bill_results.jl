@@ -55,9 +55,9 @@ function calculate_electricity_bill(
         elseif tariff.nem_version == 2
             bill_results["nem_revenue"] = sum(
                 time_series_results[!, "net_exports"] .* (
-                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
-                        tariff.nem_prices[!, "rates"] .+ tariff.nem_2_non_bypassable_charge
-                    ) .- tariff.nem_2_non_bypassable_charge
+                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge) .-
+                    tariff.non_bypassable_charge
                 ),
             )
         else

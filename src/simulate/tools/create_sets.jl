@@ -284,8 +284,8 @@ function create_sets(
                     )[
                         !,
                         "rates",
-                    ] .+ tariff.nem_2_non_bypassable_charge
-                ) .- tariff.nem_2_non_bypassable_charge
+                    ] .+ tariff.non_bypassable_charge
+                ) .- tariff.non_bypassable_charge
         else
             sets["nem_prices"] = filter(
                 row -> row["timestamp"] in
