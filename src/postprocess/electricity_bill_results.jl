@@ -44,29 +44,54 @@ function calculate_electricity_bill(
         bill_results["total_charge"] += bill_results["demand_charge"]
     end
 
-    # Calculate the total revenue from net energy metering (NEM), if applicable
+    # Calculate the total non-bypassable charges (a subset of the total energy charge) and 
+    # the total revenue from net energy metering (NEM), if applicable
     if tariff.nem_enabled & solar.enabled
-        # Calculate NEM revenue
         if tariff.nem_version == 1
+            # Calculate NEM revenue
             bill_results["nem_revenue"] =
                 tariff.all_charge_scaling *
                 tariff.energy_charge_scaling *
                 sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
+
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -=
+                min(bill_results["nem_revenue"], bill_results["energy_charge"])
         elseif tariff.nem_version == 2
+            # Calculate the non-bypassable charges
+            bill_results["non_bypassable_charge"] =
+                tariff.non_bypassable_charge * sum(time_series_results[!, "net_demand"])
+
+            # Calculate NEM revenue
             bill_results["nem_revenue"] = sum(
                 time_series_results[!, "net_exports"] .* (
                     tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
-                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge) .-
-                    tariff.non_bypassable_charge
+                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge)
                 ),
             )
-        else
-            bill_results["nem_revenue"] =
-                sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
-        end
 
-        # Update the cost of the total electricity bill
-        bill_results["total_charge"] -= bill_results["nem_revenue"]
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -= min(
+                bill_results["nem_revenue"],
+                bill_results["energy_charge"] - bill_results["non_bypassable_charge"],
+            )
+        elseif tariff.nem_version == 3
+            # Calculate the non-bypassable charges
+            bill_results["non_bypassable_charge"] =
+                tariff.non_bypassable_charge * sum(time_series_results[!, "net_demand"])
+
+            # Calculate NEM revenue
+            bill_results["nem_revenue"] = sum(
+                time_series_results[!, "net_exports"] .*
+                (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge),
+            )
+
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -= min(
+                bill_results["nem_revenue"],
+                bill_results["energy_charge"] - bill_results["non_bypassable_charge"],
+            )
+        end
     end
 
     # Calculate the customer charge, if applicable
