@@ -323,8 +323,10 @@ function create_nem_price_profile(
         profile = deepcopy(energy_price_profile)
         profile[!, "rates"] .-= tariff.non_bypassable_charge
     elseif tariff.nem_version == 3
-        # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators
+        # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators 
+        # and minus the non-bypassable charge
         profile = calculate_nem_3_price_profile(scenario, filepath)
+        profile[!, "rates"] .-= tariff.non_bypassable_charge
     end
 
     # Return the profile for NEM sell rates
