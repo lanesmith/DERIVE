@@ -138,6 +138,7 @@ Base.@kwdef struct Solar
     inverter_eff::Float64
     lifespan::Union{Int64,Nothing}
     investment_tax_credit::Float64
+    linked_cost_scaling::Float64
 end
 
 """
@@ -163,6 +164,7 @@ Base.@kwdef struct Storage
     fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
     investment_tax_credit::Float64
+    linked_cost_scaling::Float64
 end
 
 """

@@ -427,7 +427,9 @@ function define_bes_capital_cost_objective!(
                 # Use a simple amortization if the necessary information is not provided
                 JuMP.add_to_expression!(
                     obj,
-                    storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+                    storage.linked_cost_scaling *
+                    storage.power_capital_cost *
+                    m[:bes_power_capacity] / storage.lifespan,
                 )
             else
                 # Calculate the real discount rate using the nominal discount rate and 
@@ -443,6 +445,7 @@ function define_bes_capital_cost_objective!(
                         (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
                         ((1 + real_discount_rate)^storage.lifespan - 1)
                     ) *
+                    storage.linked_cost_scaling *
                     storage.power_capital_cost *
                     m[:bes_power_capacity],
                 )
@@ -457,6 +460,7 @@ function define_bes_capital_cost_objective!(
                         (1 + scenario.real_discount_rate)^storage.lifespan
                     ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
                 ) *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
             )
@@ -467,6 +471,9 @@ function define_bes_capital_cost_objective!(
     # the determined battery energy storage system to the objective function; assume there 
     # are no variable O&M costs
     if !isnothing(storage.fixed_om_cost)
-        JuMP.add_to_expression!(obj, storage.fixed_om_cost * m[:bes_power_capacity])
+        JuMP.add_to_expression!(
+            obj,
+            storage.linked_cost_scaling * storage.fixed_om_cost * m[:bes_power_capacity],
+        )
     end
 end

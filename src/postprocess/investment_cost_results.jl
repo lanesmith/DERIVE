@@ -48,11 +48,12 @@ function store_investment_cost_results(
         investment_cost_results["solar_lifespan"] = solar.lifespan
 
         # Store the solar capital cost (i.e., $/kW cost)
-        investment_cost_results["solar_capital_cost_per_kW"] = solar.capital_cost
+        investment_cost_results["solar_capital_cost_per_kW"] =
+            solar.linked_cost_scaling * solar.capital_cost
 
         # Store the total capital cost of the solar PV system
         investment_cost_results["total_solar_capital_cost"] =
-            solar.capital_cost * JuMP.value(m[:pv_capacity])
+            solar.linked_cost_scaling * solar.capital_cost * JuMP.value(m[:pv_capacity])
 
         # Store the capital recovery factor for the solar PV system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
@@ -68,15 +69,17 @@ function store_investment_cost_results(
         # Store the amortized capital cost of the solar PV system
         investment_cost_results["amortized_solar_capital_cost"] =
             investment_cost_results["solar_capital_recovery_factor"] *
+            solar.linked_cost_scaling *
             solar.capital_cost *
             JuMP.value(m[:pv_capacity])
 
         # Store the solar O&M cost (i.e., $/kW-yr cost)
-        investment_cost_results["solar_o&m_cost_per_kW_per_year"] = solar.fixed_om_cost
+        investment_cost_results["solar_o&m_cost_per_kW_per_year"] =
+            solar.linked_cost_scaling * solar.fixed_om_cost
 
         # Store the total O&M cost of the solar PV system for one year
         investment_cost_results["solar_o&m_cost"] =
-            solar.fixed_om_cost * JuMP.value(m[:pv_capacity])
+            solar.linked_cost_scaling * solar.fixed_om_cost * JuMP.value(m[:pv_capacity])
 
         if solar.investment_tax_credit > 0.0
             # Store the solar investment tax credit (ITC) percentage
@@ -85,6 +88,7 @@ function store_investment_cost_results(
             # Store the total solar ITC
             investment_cost_results["total_solar_itc_amount"] =
                 solar.investment_tax_credit *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 JuMP.value(m[:pv_capacity])
 
@@ -92,6 +96,7 @@ function store_investment_cost_results(
             investment_cost_results["amortized_solar_ITC_amount"] =
                 investment_cost_results["solar_capital_recovery_factor"] *
                 solar.investment_tax_credit *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 JuMP.value(m[:pv_capacity])
         end
@@ -108,11 +113,14 @@ function store_investment_cost_results(
         investment_cost_results["storage_duration"] = storage.duration
 
         # Store the storage capital cost (i.e., $/kW cost for a specific storage duration)
-        investment_cost_results["storage_capital_cost_per_kW"] = storage.power_capital_cost
+        investment_cost_results["storage_capital_cost_per_kW"] =
+            storage.linked_cost_scaling * storage.power_capital_cost
 
         # Store the total capital cost of the BES system
         investment_cost_results["total_storage_capital_cost"] =
-            storage.power_capital_cost * JuMP.value(m[:bes_power_capacity])
+            storage.linked_cost_scaling *
+            storage.power_capital_cost *
+            JuMP.value(m[:bes_power_capacity])
 
         # Store the capital recovery factor for the BES system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
@@ -130,15 +138,19 @@ function store_investment_cost_results(
         # Store the amortized capital cost of the BES system
         investment_cost_results["amortized_storage_capital_cost"] =
             investment_cost_results["storage_capital_recovery_factor"] *
+            storage.linked_cost_scaling *
             storage.power_capital_cost *
             JuMP.value(m[:bes_power_capacity])
 
         # Store the storage O&M cost (i.e., $/kW-yr cost)
-        investment_cost_results["storage_o&m_cost_per_kW_per_year"] = storage.fixed_om_cost
+        investment_cost_results["storage_o&m_cost_per_kW_per_year"] =
+            storage.linked_cost_scaling * storage.fixed_om_cost
 
         # Store the total O&M cost of the BES system for one year
         investment_cost_results["storage_o&m_cost"] =
-            storage.fixed_om_cost * JuMP.value(m[:bes_power_capacity])
+            storage.linked_cost_scaling *
+            storage.fixed_om_cost *
+            JuMP.value(m[:bes_power_capacity])
 
         if storage.investment_tax_credit > 0.0
             # Store the storage ITC percentage
@@ -147,6 +159,7 @@ function store_investment_cost_results(
             # Store the total storage ITC
             investment_cost_results["total_storage_itc_amount"] =
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 JuMP.value(m[:bes_power_capacity])
 
@@ -154,6 +167,7 @@ function store_investment_cost_results(
             investment_cost_results["amortized_storage_ITC_amount"] =
                 investment_cost_results["storage_capital_recovery_factor"] *
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 JuMP.value(m[:bes_power_capacity])
         end
