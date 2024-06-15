@@ -88,8 +88,16 @@ function simulate_by_year(
 
     # Store the investment-cost results, if applicable
     if scenario.problem_type == "CEM"
-        investment_cost_results =
-            store_investment_cost_results(m, scenario, solar, storage, output_filepath)
+        investment_cost_results = store_investment_cost_results(
+            m,
+            scenario,
+            tariff,
+            demand,
+            solar,
+            storage,
+            electricity_bill,
+            output_filepath,
+        )
     else
         investment_cost_results = nothing
     end

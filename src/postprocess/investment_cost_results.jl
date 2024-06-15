@@ -2,8 +2,11 @@
     store_investment_cost_results(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
+        demand::Demand,
         solar::Solar,
         storage::Storage,
+        electricity_bill::Dict{String,Any},
         output_filepath::Union{String,Nothing}=nothing,
     )::Dict{String,Any}
 
@@ -14,8 +17,11 @@ saved, if desired.
 function store_investment_cost_results(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
+    demand::Demand,
     solar::Solar,
     storage::Storage,
+    electricity_bill::Dict{String,Any},
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict{String,Any}
     # Initialize the investment cost results
@@ -39,6 +45,9 @@ function store_investment_cost_results(
     else
         investment_cost_results["real_discount_rate"] = scenario.real_discount_rate
     end
+
+    # Initialize the payback period calculation
+    investment_cost_results["payback_period"] = 0
 
     if solar.enabled
         # Store the solar photovoltaic (PV) capacity
@@ -115,6 +124,13 @@ function store_investment_cost_results(
                 solar.capital_cost *
                 JuMP.value(m[:pv_capacity])
         end
+
+        # Update the payback period calculation to include solar capital costs
+        investment_cost_results["payback_period"] +=
+            (
+                investment_cost_results["amortized_solar_capital_cost"] +
+                investment_cost_results["solar_o&m_cost"]
+            ) * investment_cost_results["solar_amortization_period"]
     end
 
     if storage.enabled
@@ -199,7 +215,43 @@ function store_investment_cost_results(
                 storage.power_capital_cost *
                 JuMP.value(m[:bes_power_capacity])
         end
+
+        # Update the payback period calculation to include storage capital costs
+        investment_cost_results["payback_period"] +=
+            (
+                investment_cost_results["amortized_storage_capital_cost"] +
+                investment_cost_results["storage_o&m_cost"]
+            ) * investment_cost_results["storage_amortization_period"]
     end
+
+    # Calculate the total electricity bill without the impact of solar or storage
+    base_total_charge =
+        tariff.all_charge_scaling *
+        tariff.energy_charge_scaling *
+        sum(demand.demand_profile[!, "demand"] .* tariff.energy_prices[!, "rates"])
+    if !isnothing(tariff.demand_prices)
+        base_total_charge +=
+            tariff.all_charge_scaling *
+            tariff.demand_charge_scaling *
+            sum(
+                v * maximum(tariff.demand_mask[!, k] .* demand.demand_profile[!, "demand"])
+                for (k, v) in tariff.demand_prices
+            )
+    end
+    if collect(values(tariff.customer_charge)) != zeros(length(tariff.customer_charge))
+        for (k, v) in tariff.customer_charge
+            if k == "daily"
+                base_total_charge +=
+                    tariff.all_charge_scaling * Dates.daysinyear(scenario.year) * v
+            elseif k == "monthly"
+                base_total_charge += tariff.all_charge_scaling * 12 * v
+            end
+        end
+    end
+
+    # Calculate the payback period
+    investment_cost_results["payback_period"] /=
+        (base_total_charge - electricity_bill["total_charge"])
 
     # Save the electricity bill results, if desired
     if !isnothing(output_filepath)
