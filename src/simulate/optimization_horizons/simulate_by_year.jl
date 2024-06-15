@@ -8,7 +8,7 @@
         solar::Solar,
         storage::Storage,
         output_filepath::Union{String,Nothing}=nothing,
-    )::Tuple{DataFrames.DataFrame,Dict}
+    )::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
 necessary results.
