@@ -55,15 +55,30 @@ function store_investment_cost_results(
         investment_cost_results["total_solar_capital_cost"] =
             solar.linked_cost_scaling * solar.capital_cost * JuMP.value(m[:pv_capacity])
 
+        # Store the amortization period for the solar PV system
+        if isnothing(scenario.amortization_period)
+            investment_cost_results["solar_amortization_period"] = solar.lifespan
+        else
+            investment_cost_results["solar_amortization_period"] =
+                scenario.amortization_period
+        end
+
         # Store the capital recovery factor for the solar PV system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
-            investment_cost_results["solar_capital_recovery_factor"] = 1 / solar.lifespan
+            investment_cost_results["solar_capital_recovery_factor"] =
+                1 / investment_cost_results["solar_amortization_period"]
         else
             investment_cost_results["solar_capital_recovery_factor"] =
                 (
                     investment_cost_results["real_discount_rate"] *
-                    (1 + investment_cost_results["real_discount_rate"])^solar.lifespan
-                ) / ((1 + investment_cost_results["real_discount_rate"])^solar.lifespan - 1)
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["solar_amortization_period"]
+                ) / (
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["solar_amortization_period"] - 1
+                )
         end
 
         # Store the amortized capital cost of the solar PV system
@@ -122,17 +137,30 @@ function store_investment_cost_results(
             storage.power_capital_cost *
             JuMP.value(m[:bes_power_capacity])
 
+        # Store the amortization period for the BES system
+        if isnothing(scenario.amortization_period)
+            investment_cost_results["storage_amortization_period"] = storage.lifespan
+        else
+            investment_cost_results["storage_amortization_period"] =
+                scenario.amortization_period
+        end
+
         # Store the capital recovery factor for the BES system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
             investment_cost_results["storage_capital_recovery_factor"] =
-                1 / storage.lifespan
+                1 / investment_cost_results["storage_amortization_period"]
         else
             investment_cost_results["storage_capital_recovery_factor"] =
                 (
                     investment_cost_results["real_discount_rate"] *
-                    (1 + investment_cost_results["real_discount_rate"])^storage.lifespan
-                ) /
-                ((1 + investment_cost_results["real_discount_rate"])^storage.lifespan - 1)
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["storage_amortization_period"]
+                ) / (
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["storage_amortization_period"] - 1
+                )
         end
 
         # Store the amortized capital cost of the BES system

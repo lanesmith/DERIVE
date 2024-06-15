@@ -13,7 +13,7 @@ Base.@kwdef struct Scenario
     latitude::Union{Float64,Nothing}
     longitude::Union{Float64,Nothing}
     timezone::Union{String,Nothing}
-    payback_period::Union{Int64,Nothing}
+    amortization_period::Union{Int64,Nothing}
     real_discount_rate::Union{Float64,Nothing}
     nominal_discount_rate::Union{Float64,Nothing}
     inflation_rate::Union{Float64,Nothing}

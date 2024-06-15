@@ -168,6 +168,14 @@ function define_solar_pv_capital_cost_objective!(
             ),
         )
     else
+        # Establish the amortization period
+        if isnothing(scenario.amortization_period)
+            amortization_period = solar.lifespan
+        else
+            amortization_period = scenario.amortization_period
+        end
+
+        # Determine the amortized capital cost
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
@@ -175,7 +183,7 @@ function define_solar_pv_capital_cost_objective!(
                 JuMP.add_to_expression!(
                     obj,
                     solar.linked_cost_scaling * solar.capital_cost * m[:pv_capacity] /
-                    solar.lifespan,
+                    amortization_period,
                 )
             else
                 # Calculate the real discount rate using the nominal discount rate and 
@@ -188,8 +196,10 @@ function define_solar_pv_capital_cost_objective!(
                 JuMP.add_to_expression!(
                     obj,
                     (
-                        (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
-                        ((1 + real_discount_rate)^solar.lifespan - 1)
+                        (
+                            real_discount_rate *
+                            (1 + real_discount_rate)^amortization_period
+                        ) / ((1 + real_discount_rate)^amortization_period - 1)
                     ) *
                     solar.linked_cost_scaling *
                     solar.capital_cost *
@@ -203,8 +213,8 @@ function define_solar_pv_capital_cost_objective!(
                 (
                     (
                         scenario.real_discount_rate *
-                        (1 + scenario.real_discount_rate)^solar.lifespan
-                    ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                        (1 + scenario.real_discount_rate)^amortization_period
+                    ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
                 ) *
                 solar.linked_cost_scaling *
                 solar.capital_cost *

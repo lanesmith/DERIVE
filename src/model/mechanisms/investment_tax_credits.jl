@@ -16,6 +16,13 @@ function define_solar_investment_tax_credit!(
     scenario::Scenario,
     solar::Solar,
 )
+    # Establish the amortization period
+    if isnothing(scenario.amortization_period)
+        amortization_period = solar.lifespan
+    else
+        amortization_period = scenario.amortization_period
+    end
+
     # Reduce the capital cost of the solar PV system by the specified investment tax credit
     if isnothing(scenario.real_discount_rate)
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
@@ -23,7 +30,7 @@ function define_solar_investment_tax_credit!(
             JuMP.add_to_expression!(
                 obj,
                 -1 * solar.investment_tax_credit * solar.capital_cost * m[:pv_capacity] /
-                solar.lifespan,
+                amortization_period,
             )
         else
             # Calculate the real discount rate using the nominal discount rate and 
@@ -37,8 +44,8 @@ function define_solar_investment_tax_credit!(
                 obj,
                 -1 *
                 (
-                    (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
-                    ((1 + real_discount_rate)^solar.lifespan - 1)
+                    (real_discount_rate * (1 + real_discount_rate)^amortization_period) /
+                    ((1 + real_discount_rate)^amortization_period - 1)
                 ) *
                 solar.investment_tax_credit *
                 solar.capital_cost *
@@ -53,8 +60,8 @@ function define_solar_investment_tax_credit!(
             (
                 (
                     scenario.real_discount_rate *
-                    (1 + scenario.real_discount_rate)^solar.lifespan
-                ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                    (1 + scenario.real_discount_rate)^amortization_period
+                ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
             ) *
             solar.investment_tax_credit *
             solar.capital_cost *
@@ -81,6 +88,13 @@ function define_storage_investment_tax_credit!(
     scenario::Scenario,
     storage::Storage,
 )
+    # Establish the amortization period
+    if isnothing(scenario.amortization_period)
+        amortization_period = storage.lifespan
+    else
+        amortization_period = scenario.amortization_period
+    end
+
     # Reduce the capital cost of the battery energy storage system by the specified 
     # investment tax credit
     if isnothing(scenario.real_discount_rate)
@@ -91,7 +105,7 @@ function define_storage_investment_tax_credit!(
                 -1 *
                 storage.investment_tax_credit *
                 storage.power_capital_cost *
-                m[:bes_power_capacity] / storage.lifespan,
+                m[:bes_power_capacity] / amortization_period,
             )
         else
             # Calculate the real discount rate using the nominal discount rate and 
@@ -105,8 +119,8 @@ function define_storage_investment_tax_credit!(
                 obj,
                 -1 *
                 (
-                    (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
-                    ((1 + real_discount_rate)^storage.lifespan - 1)
+                    (real_discount_rate * (1 + real_discount_rate)^amortization_period) /
+                    ((1 + real_discount_rate)^amortization_period - 1)
                 ) *
                 storage.investment_tax_credit *
                 storage.power_capital_cost *
@@ -121,8 +135,8 @@ function define_storage_investment_tax_credit!(
             (
                 (
                     scenario.real_discount_rate *
-                    (1 + scenario.real_discount_rate)^storage.lifespan
-                ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+                    (1 + scenario.real_discount_rate)^amortization_period
+                ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
             ) *
             storage.investment_tax_credit *
             storage.power_capital_cost *

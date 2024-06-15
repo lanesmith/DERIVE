@@ -421,6 +421,14 @@ function define_bes_capital_cost_objective!(
             ),
         )
     else
+        # Establish the amortization period
+        if isnothing(scenario.amortization_period)
+            amortization_period = storage.lifespan
+        else
+            amortization_period = scenario.amortization_period
+        end
+
+        # Determine the amortized capital cost
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
@@ -429,7 +437,7 @@ function define_bes_capital_cost_objective!(
                     obj,
                     storage.linked_cost_scaling *
                     storage.power_capital_cost *
-                    m[:bes_power_capacity] / storage.lifespan,
+                    m[:bes_power_capacity] / amortization_period,
                 )
             else
                 # Calculate the real discount rate using the nominal discount rate and 
@@ -442,8 +450,10 @@ function define_bes_capital_cost_objective!(
                 JuMP.add_to_expression!(
                     obj,
                     (
-                        (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
-                        ((1 + real_discount_rate)^storage.lifespan - 1)
+                        (
+                            real_discount_rate *
+                            (1 + real_discount_rate)^amortization_period
+                        ) / ((1 + real_discount_rate)^amortization_period - 1)
                     ) *
                     storage.linked_cost_scaling *
                     storage.power_capital_cost *
@@ -457,8 +467,8 @@ function define_bes_capital_cost_objective!(
                 (
                     (
                         scenario.real_discount_rate *
-                        (1 + scenario.real_discount_rate)^storage.lifespan
-                    ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+                        (1 + scenario.real_discount_rate)^amortization_period
+                    ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
                 ) *
                 storage.linked_cost_scaling *
                 storage.power_capital_cost *

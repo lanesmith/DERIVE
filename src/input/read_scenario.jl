@@ -15,7 +15,7 @@ function read_scenario(filepath::String)::Scenario
         "latitude" => nothing,
         "longitude" => nothing,
         "timezone" => nothing,
-        "payback_period" => nothing,
+        "amortization_period" => nothing,
         "real_discount_rate" => nothing,
         "nominal_discount_rate" => nothing,
         "inflation_rate" => nothing,
