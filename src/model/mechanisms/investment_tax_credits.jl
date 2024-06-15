@@ -29,8 +29,11 @@ function define_solar_investment_tax_credit!(
             # Use a simple amortization if the necessary information is not provided
             JuMP.add_to_expression!(
                 obj,
-                -1 * solar.investment_tax_credit * solar.capital_cost * m[:pv_capacity] /
-                amortization_period,
+                -1 *
+                solar.investment_tax_credit *
+                solar.linked_cost_scaling *
+                solar.capital_cost *
+                m[:pv_capacity] / amortization_period,
             )
         else
             # Calculate the real discount rate using the nominal discount rate and 
@@ -48,6 +51,7 @@ function define_solar_investment_tax_credit!(
                     ((1 + real_discount_rate)^amortization_period - 1)
                 ) *
                 solar.investment_tax_credit *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 m[:pv_capacity],
             )
@@ -64,6 +68,7 @@ function define_solar_investment_tax_credit!(
                 ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
             ) *
             solar.investment_tax_credit *
+            solar.linked_cost_scaling *
             solar.capital_cost *
             m[:pv_capacity],
         )
@@ -104,6 +109,7 @@ function define_storage_investment_tax_credit!(
                 obj,
                 -1 *
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 m[:bes_power_capacity] / amortization_period,
             )
@@ -123,6 +129,7 @@ function define_storage_investment_tax_credit!(
                     ((1 + real_discount_rate)^amortization_period - 1)
                 ) *
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
             )
@@ -139,6 +146,7 @@ function define_storage_investment_tax_credit!(
                 ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
             ) *
             storage.investment_tax_credit *
+            storage.linked_cost_scaling *
             storage.power_capital_cost *
             m[:bes_power_capacity],
         )
