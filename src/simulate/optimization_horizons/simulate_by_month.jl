@@ -7,8 +7,7 @@
         demand::Demand,
         solar::Solar,
         storage::Storage,
-        time_series_results::DataFrames.DataFrame,
-        output_folder::Union{String,Nothing}=nothing,
+        output_filepath::Union{String,Nothing}=nothing,
     )::DataFrames.DataFrame
 
 Simulate the optimization problem using optimization horizons of one month. Store the 
@@ -22,9 +21,11 @@ function simulate_by_month(
     demand::Demand,
     solar::Solar,
     storage::Storage,
-    time_series_results::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
-)::DataFrames.DataFrame
+)::Tuple{DataFrames.DataFrame,Dict}
+    # Initialize the time-series results DataFrame
+    time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
+
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial
@@ -98,6 +99,15 @@ function simulate_by_month(
         CSV.write(joinpath(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
+    # Caluclate the electricity bill components
+    electricity_bill = calculate_electricity_bill(
+        scenario,
+        tariff,
+        solar,
+        time_series_results,
+        output_filepath,
+    )
+
     # Return the results
-    return time_series_results
+    return time_series_results, electricity_bill
 end

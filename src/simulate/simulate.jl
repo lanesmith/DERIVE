@@ -55,14 +55,11 @@ function solve_problem(
     # investment results (if applicable)
     results = Dict{String,Union{DataFrames.DataFrame,Dict}}()
 
-    # Initialize the time-series results DataFrame
-    results["time-series"] = initialize_time_series_results(tariff, demand, solar, storage)
-
     # Perform the simulation, depending on problem type and optimization horizon
     if (scenario.problem_type == "PCM") &
        (scenario.optimization_horizon in ["DAY", "MONTH", "YEAR"])
         if scenario.optimization_horizon == "DAY"
-            results["time-series"] = simulate_by_day(
+            results["time-series"], results["electricity_bill"] = simulate_by_day(
                 scenario,
                 tariff,
                 market,
@@ -70,11 +67,10 @@ function solve_problem(
                 demand,
                 solar,
                 storage,
-                results["time-series"],
                 output_filepath,
             )
         elseif scenario.optimization_horizon == "MONTH"
-            results["time-series"] = simulate_by_month(
+            results["time-series"], results["electricity_bill"] = simulate_by_month(
                 scenario,
                 tariff,
                 market,
@@ -82,11 +78,10 @@ function solve_problem(
                 demand,
                 solar,
                 storage,
-                results["time-series"],
                 output_filepath,
             )
         elseif scenario.optimization_horizon == "YEAR"
-            results["time-series"], _ = simulate_by_year(
+            results["time-series"], results["electricity_bill"], _ = simulate_by_year(
                 scenario,
                 tariff,
                 market,
@@ -94,23 +89,22 @@ function solve_problem(
                 demand,
                 solar,
                 storage,
-                results["time-series"],
                 output_filepath,
             )
         end
     elseif (scenario.problem_type == "CEM") & (scenario.optimization_horizon in ["YEAR"])
         if scenario.optimization_horizon == "YEAR"
-            results["time-series"], results["investment"] = simulate_by_year(
-                scenario,
-                tariff,
-                market,
-                incentives,
-                demand,
-                solar,
-                storage,
-                results["time-series"],
-                output_filepath,
-            )
+            results["time-series"], results["electricity_bill"], results["investment"] =
+                simulate_by_year(
+                    scenario,
+                    tariff,
+                    market,
+                    incentives,
+                    demand,
+                    solar,
+                    storage,
+                    output_filepath,
+                )
         end
     else
         throw(
@@ -123,15 +117,6 @@ function solve_problem(
             ),
         )
     end
-
-    # Caluclate the electricity bill components and inlcude them in the results Dict
-    results["electricity_bill"] = calculate_electricity_bill(
-        scenario,
-        tariff,
-        solar,
-        results["time-series"],
-        output_filepath,
-    )
 
     # Return the time-series results, electricity bill results, and investment results (if 
     # applicable)
