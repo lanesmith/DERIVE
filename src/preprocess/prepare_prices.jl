@@ -71,6 +71,98 @@ function create_energy_rate_profile(
 end
 
 """
+    create_tou_energy_charge_scaling_indicator_profile(
+        scenario::Scenario,
+        tariff::Tariff,
+    )::DataFrames.DataFrame
+
+Creates the profile that indicates the time steps that should have scaled energy prices
+according to the specified time-of-use period.
+"""
+function create_tou_energy_charge_scaling_indicator_profile(
+    scenario::Scenario,
+    tariff::Tariff,
+)::DataFrames.DataFrame
+    # Create annual profile with specified time increments
+    profile = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+        ),
+        "indicators" => zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
+            ),
+        ),
+    )
+
+    if !isnothing(tariff.tou_energy_charge_scaling_period)
+        # Create inverse mapping of seasons to months
+        seasons_by_month = Dict{Int64,String}(
+            v => k for k in keys(tariff.months_by_season) for
+            v in values(tariff.months_by_season[k])
+        )
+
+        # Iterate through months and hours to set time-of-use energy charge scaling indicators
+        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+            for h in sort!(
+                collect(
+                    keys(
+                        tariff.energy_tou_rates[collect(keys(tariff.energy_tou_rates))[1]],
+                    ),
+                ),
+            )
+                # Set indicators by hour, month, and alignment with the specified scaling 
+                # period
+                profile[!, "indicators"] .=
+                    ifelse.(
+                        (Dates.hour.(profile.timestamp) .== h) .&
+                        (Dates.month.(profile.timestamp) .== m) .&
+                        (
+                            tariff.energy_tou_rates[seasons_by_month[m]][h]["label"] .==
+                            tariff.tou_energy_charge_scaling_period
+                        ),
+                        1.0,
+                        profile[!, "indicators"],
+                    )
+
+                # Update the profile if there is a distinction between weekdays and weekends
+                if tariff.weekday_weekend_split
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            identify_weekends.(profile.timestamp, m),
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                tariff.tou_energy_charge_scaling_period
+                            ) ? 1.0 : 0.0,
+                            profile[!, "indicators"],
+                        )
+                end
+
+                # Update the profile if there is a distinction between holidays and 
+                # non-holidays
+                if tariff.holiday_split
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            identify_holidays.(profile.timestamp, m),
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                tariff.tou_energy_charge_scaling_period
+                            ) ? 1.0 : 0.0,
+                            profile[!, "indicators"],
+                        )
+                end
+            end
+        end
+    end
+
+    # Return the profile for the time-of-use energy charge scaling indicators
+    return profile
+end
+
+"""
     create_demand_rate_profile(
         scenario::Scenario,
         tariff::Tariff,
@@ -532,6 +624,10 @@ function create_rate_profiles(
         tariff_["nem_prices"] =
             create_nem_price_profile(scenario, tariff, tariff_["energy_prices"], filepath)
     end
+
+    # Create the time-of-use energy charge scaling indicator profile
+    tariff_["tou_energy_charge_scaling_indicator"] =
+        create_tou_energy_charge_scaling_indicator_profile(scenario, tariff)
 
     # Convert Dict to NamedTuple
     tariff_ = (; (Symbol(k) => v for (k, v) in tariff_)...)

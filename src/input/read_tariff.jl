@@ -30,6 +30,9 @@ function read_tariff(filepath::String)::Tariff
         "nem_prices" => nothing,
         "energy_charge_scaling" => 1.0,
         "demand_charge_scaling" => 1.0,
+        "tou_energy_charge_scaling" => 1.0,
+        "tou_energy_charge_scaling_period" => nothing,
+        "tou_energy_charge_scaling_indicator" => nothing,
         "all_charge_scaling" => 1.0,
     )
 
@@ -235,7 +238,12 @@ function read_tariff(filepath::String)::Tariff
     end
 
     # Check that the scaling terms are not less than or equal to zero
-    for p in ["energy_charge_scaling", "demand_charge_scaling", "all_charge_scaling"]
+    for p in [
+        "energy_charge_scaling",
+        "demand_charge_scaling",
+        "tou_energy_charge_scaling",
+        "all_charge_scaling",
+    ]
         if tariff[p] < 0.0
             throw(
                 ErrorException(
@@ -250,9 +258,23 @@ function read_tariff(filepath::String)::Tariff
 
     # Update the scaling terms depending on the all_charge_scaling term
     if tariff["all_charge_scaling"] != 1.0
-        for p in ["energy_charge_scaling", "demand_charge_scaling"]
+        for p in
+            ["energy_charge_scaling", "demand_charge_scaling", "tou_energy_charge_scaling"]
             tariff[p] = 1.0
         end
+    end
+
+    # Check that the time-of-use energy charge scaling period is valid
+    if !(
+        tariff["tou_energy_charge_scaling_period"] in
+        tariff_information[:, "energy_tou_labels"]
+    )
+        throw(
+            ErrorException(
+                "The provided time-of-use energy charge scaling period is not valid " *
+                "based on the provided tariff. Please try again.",
+            ),
+        )
     end
 
     # Convert Dict to NamedTuple

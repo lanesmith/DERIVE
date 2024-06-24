@@ -105,9 +105,40 @@ function create_sets(
         ]
     end
 
+    # Determine the time-of-use energy charge scaling
+    if tariff.tou_energy_charge_scaling > 0.0
+        tou_energy_charge_scaling =
+            tariff.tou_energy_charge_scaling .* filter(
+                row -> row["timestamp"] in
+                start_index:Dates.Minute(scenario.interval_length):end_index,
+                tariff.tou_energy_charge_scaling_indicator,
+            )[
+                !,
+                "indicators",
+            ]
+        replace!(tou_energy_charge_scaling, 0.0 => 1.0)
+    else
+        tou_energy_charge_scaling = filter(
+            row -> row["timestamp"] in
+            start_index:Dates.Minute(scenario.interval_length):end_index,
+            tariff.tou_energy_charge_scaling_indicator,
+        )[
+            !,
+            "indicators",
+        ]
+        for i in eachindex(tou_energy_charge_scaling)
+            if tou_energy_charge_scaling[i] == 1.0
+                tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
+            else
+                tou_energy_charge_scaling[i] = 1.0
+            end
+        end
+    end
+
     # Partition the energy prices accordingly
     sets["energy_prices"] =
-        tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+        tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+        tou_energy_charge_scaling .* filter(
             row -> row["timestamp"] in
             start_index:Dates.Minute(scenario.interval_length):end_index,
             tariff.energy_prices,
@@ -266,7 +297,8 @@ function create_sets(
     if tariff.nem_enabled & solar.enabled
         if tariff.nem_version == 1
             sets["nem_prices"] =
-                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                tou_energy_charge_scaling .* filter(
                     row -> row["timestamp"] in
                     start_index:Dates.Minute(scenario.interval_length):end_index,
                     tariff.nem_prices,
@@ -276,7 +308,8 @@ function create_sets(
                 ]
         elseif tariff.nem_version == 2
             sets["nem_prices"] =
-                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                tou_energy_charge_scaling .* (
                     filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,

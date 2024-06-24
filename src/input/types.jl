@@ -51,6 +51,9 @@ Base.@kwdef struct Tariff
     nem_prices::Union{DataFrames.DataFrame,Nothing}
     energy_charge_scaling::Float64
     demand_charge_scaling::Float64
+    tou_energy_charge_scaling::Float64
+    tou_energy_charge_scaling_period::Union{String,Nothing}
+    tou_energy_charge_scaling_indicator::Union{DataFrames.DataFrame,Nothing}
     all_charge_scaling::Float64
 end
 
