@@ -417,7 +417,7 @@ function create_nem_price_profile(
     elseif tariff.nem_version == 3
         # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators 
         # and minus the non-bypassable charge
-        profile = calculate_nem_3_price_profile(scenario, filepath)
+        profile = calculate_nem_3_price_profile(scenario, tariff, filepath)
         profile[!, "rates"] .-= tariff.non_bypassable_charge
     end
 
@@ -426,8 +426,9 @@ function create_nem_price_profile(
 end
 
 """
-    calculate_nem_3_profiles(
+    calculate_nem_3_profile(
         scenario::Scenario,
+        tariff::Tariff,
         filepath::String,
         save::Bool=false,
     )::DataFrames.DataFrame
@@ -438,53 +439,83 @@ avoided cost calculator.
 """
 function calculate_nem_3_price_profile(
     scenario::Scenario,
+    tariff::Tariff,
     filepath::String,
     save::Bool=false,
 )::DataFrames.DataFrame
-    # Initialize variables to hold avoided cost calculator (ACC) values and the number of 
-    # climate zones
-    acc_profile = zeros(8760)
-    acc_profile_cz = zeros(8760)
-    cz_counter = 0
-
-    # Add the ACC component prices together
-    for i in readdir(joinpath(filepath, "nem_3_data"))
-        if occursin("CZ", i)
-            # Read in the ACC distribution capacity price profile
-            acc_profile_cz .+=
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                    !,
-                    string(scenario.year),
-                ]
-
-            # Increment the number of climate zones
-            cz_counter += 1
+    # Determine if the NEM 3.0 profile will consist of prices for the specified year or 
+    # averaged prices over many years. If the latter, the amortization_period parameter in 
+    # scenario must be specified
+    if tariff.average_nem_3_over_years
+        if isnothing(scenario.amortization_period)
+            throw(
+                ErrorException(
+                    "The amortization period is not specified, so the averaged NEM 3.0 " *
+                    "cannot be created. Please try again.",
+                ),
+            )
         else
-            # Read in the ACC component price profile
-            acc_profile .+=
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                    !,
-                    string(scenario.year),
-                ]
+            end_year = scenario.year + scenario.amortization_period - 1
         end
+    else
+        end_year = scenario.year
     end
 
-    # Scale the summed distribution capacity profiles by the number of cliamte zones and 
-    # add to the other summed ACC component price profiles
-    acc_profile .+= (1 / cz_counter) .* acc_profile_cz
+    # Initialise the DataFrame that will collect the annual profile(s) of ACC prices
+    acc_profile = DataFrames.DataFrame("timestamp" => [], "rates" => [])
 
-    # Create annual profile for ACC prices with hourly time increments
-    acc_profile = DataFrames.DataFrame(
-        "timestamp" => collect(
-            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                scenario.year,
-                12,
-                31,
-                23,
+    # Iterate through each year under consideration
+    for y in range(scenario.year, end_year)
+        # Initialize variables to hold avoided cost calculator (ACC) values and the number 
+        # of climate zones. Uses a number of time steps consistent with that used in the 
+        # ACC data
+        acc_profile_one_year = zeros(8760)
+        acc_profile_cz = zeros(8760)
+        cz_counter = 0
+
+        # Add the ACC component prices together
+        for i in readdir(joinpath(filepath, "nem_3_data"))
+            if occursin("CZ", i)
+                # Read in the ACC distribution capacity price profile
+                acc_profile_cz .+=
+                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                        !,
+                        string(y),
+                    ]
+
+                # Increment the number of climate zones
+                cz_counter += 1
+            else
+                # Read in the ACC component price profile
+                acc_profile_one_year .+=
+                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                        !,
+                        string(y),
+                    ]
+            end
+        end
+
+        # Scale the summed distribution capacity profiles by the number of cliamte zones 
+        # and add to the other summed ACC component price profiles
+        acc_profile_one_year .+= (1 / cz_counter) .* acc_profile_cz
+
+        # Update annual profile for ACC prices with hourly time increments. Uses time steps 
+        # consistent with those included in the ACC data
+        acc_profile = vcat(
+            acc_profile,
+            DataFrames.DataFrame(
+                "timestamp" => collect(
+                    Dates.DateTime(2020, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                        2020,
+                        12,
+                        30,
+                        23,
+                    ),
+                ),
+                "rates" => acc_profile_one_year ./ 1000,
             ),
-        ),
-        "rates" => acc_profile ./ 1000,
-    )
+        )
+    end
 
     # Create dictionary of average prices by month, hour, and weekday vs. weekend/holiday
     average_prices = Dict{Int64,Any}(
