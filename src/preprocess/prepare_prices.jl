@@ -418,7 +418,9 @@ function create_nem_price_profile(
         # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators 
         # and minus the non-bypassable charge
         profile = calculate_nem_3_price_profile(scenario, tariff, filepath)
-        profile[!, "rates"] .-= tariff.non_bypassable_charge
+        if scenario.optimization_horizon != "YEAR"
+            profile[!, "rates"] .-= tariff.non_bypassable_charge
+        end
     end
 
     # Return the profile for NEM sell rates

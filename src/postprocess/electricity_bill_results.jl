@@ -106,10 +106,16 @@ function calculate_electricity_bill(
                 tariff.non_bypassable_charge * sum(time_series_results[!, "net_demand"])
 
             # Calculate NEM revenue
-            bill_results["nem_revenue"] = sum(
-                time_series_results[!, "net_exports"] .*
-                (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge),
-            )
+            if scenario.optimization_horizon == "YEAR"
+                bill_results["nem_revenue"] = sum(
+                    time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"]
+                )
+            else
+                bill_results["nem_revenue"] = sum(
+                    time_series_results[!, "net_exports"] .*
+                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge),
+                )
+            end
 
             # Update the cost of the total electricity bill
             bill_results["total_charge"] -= min(
