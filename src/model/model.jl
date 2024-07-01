@@ -162,6 +162,15 @@ function build_optimization_model(
         define_bes_nonimport_constraint!(m, solar, sets)
     end
 
+    # Define the constraint that places a cap on the annual net energy metering revenue 
+    # that the consumer can collect, if applicable
+    if (scenario.optimization_horizon == "YEAR") &
+       tariff.nem_enabled &
+       (tariff.nem_version in [2, 3]) &
+       solar.enabled
+        define_annual_net_energy_metering_revenue_cap!(m, tariff, sets)
+    end
+
     # Define the linkage between net demand and exports, if enabled and applicable
     if tariff.nem_enabled & solar.enabled & scenario.binary_net_demand_and_exports_linkage
         define_net_demand_and_exports_linkage!(m, scenario, solar, storage, sets)

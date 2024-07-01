@@ -145,3 +145,37 @@ function define_pv_capacity_and_exports_linkage!(
         m[:p_exports][t] <= (1 - ζ_pv) * p_exports_ub,
     )
 end
+
+"""
+    define_annual_net_energy_metering_revenue_cap!(
+        m::JuMP.Model,
+        tariff::Tariff,
+        sets::Sets,
+    )
+
+Defines a constraint that places a cap on the annual revenue the consumer can collect from 
+participating in a qualifying net energy metering program. Qualifying net energy metering 
+programs are those in which the utility ensures they collect non-bypassable charges over a 
+one-year span (e.g., NEM 2.0, NEM 3.0). This constraint is only applicable to scenarios in 
+which an optimization horizon of one year is specified so that the full year's accounting 
+can be considered. This constraint caps the annual net energy metering revenue, which is a 
+slight deviation from actual practice. In practice, net energy metering credits that exceed 
+the utility's allowance are credited back to consumers at a small volumetric rate (e.g., 
+0.03 dollars per kilowatt-hour). Since this rate is so small, this constraint internalizes 
+the assumption that the consumer would rather use their leftover produced energy for 
+behind-the-meter needs rather than to earn additional credits at such a low price.
+"""
+function define_annual_net_energy_metering_revenue_cap!(
+    m::JuMP.Model,
+    tariff::Tariff,
+    sets::Sets,
+)
+    # Define the constraint that caps the amount of annual revenue earned through net 
+    # energy metering
+    JuMP.@constraint(
+        m,
+        annual_nem_revenue_cap,
+        sum(m[:d_net] .* sets.energy_prices) - sum(m[:p_exports] .* sets.nem_prices) >=
+        tariff.non_bypassable_charge * sum(m[:d_net])
+    )
+end
