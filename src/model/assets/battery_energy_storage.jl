@@ -38,6 +38,7 @@ function define_battery_energy_storage_model!(
     define_bes_discharging_upper_bound!(m, scenario, tariff, solar, storage, sets)
     define_bes_soc_lower_bound!(m, scenario, storage, sets)
     define_bes_soc_upper_bound!(m, scenario, storage, sets)
+    define_bes_export_upper_bound!(m, scenario, tariff, solar, storage, sets)
 end
 
 """
@@ -388,6 +389,70 @@ function define_bes_soc_upper_bound!(
             bes_soc_upper_bound[t in 1:(sets.num_time_steps)],
             m[:soc][t] <= storage.soc_max * storage.duration * storage.power_capacity
         )
+    end
+end
+
+"""
+    define_bes_export_upper_bound!(
+        m::JuMP.Model,
+        scenario::Scenario,
+        tariff::Tariff,
+        solar::Solar,
+        storage::Storage,
+        sets::Sets,
+    )
+
+TBW
+"""
+function define_bes_export_upper_bound!(
+    m::JuMP.Model,
+    scenario::Scenario,
+    tariff::Tariff,
+    solar::Solar,
+    storage::Storage,
+    sets::Sets,
+)
+    # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp 
+    # included?), if the binary net demand and exports linkage is relaxed, and if a 
+    # capacity expansion problem is being solved. Note that infeasibilities may occur if 
+    # storage is not built or if an insufficient amount of storage is built (as the upper 
+    # bound of the BES discharging power used for exports could interfere with its 
+    # preestablished lower bound)
+    if tariff.nem_enabled &
+       solar.enabled &
+       !storage.nonexport &
+       !scenario.binary_net_demand_and_exports_linkage &
+       (scenario.problem_type == "CEM") &
+       storage.make_investment
+        # Determine the time steps in which export prices are greater than energy prices
+        time_steps_subset =
+            filter(t -> sets.nem_prices[t] > sets.energy_prices[t], 1:(sets.num_time_steps))
+
+        if !isempty(time_steps_subset)
+            # Define the mapping between the indicator variable indices and the other 
+            # time-related parameters
+            time_mapping = Dict{Int64,Int64}(
+                t => time_steps_subset[t] for t in eachindex(time_steps_subset)
+            )
+
+            # Set the upper bound on the amount of power the BES can discharge to the grid
+            if solar.enabled
+                JuMP.@constraint(
+                    m,
+                    bes_export_upper_bound[t in eachindex(time_steps_subset)],
+                    m[:p_dis_exp][time_mapping[t]] <=
+                    m[:bes_power_capacity] -
+                    (sets.demand[time_mapping[t]] - m[:p_pv_btm][time_mapping[t]])
+                )
+            else
+                JuMP.@constraint(
+                    m,
+                    bes_export_upper_bound[t in eachindex(time_steps_subset)],
+                    m[:p_dis_exp][time_mapping[t]] <=
+                    m[:bes_power_capacity] - sets.demand[time_mapping[t]]
+                )
+            end
+        end
     end
 end
 
