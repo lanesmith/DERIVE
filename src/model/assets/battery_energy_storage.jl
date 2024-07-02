@@ -402,7 +402,12 @@ end
         sets::Sets,
     )
 
-TBW
+Constraint that sets an upper bound on the amount that storage can export in a given time 
+step. This constraint is intended to help limit storage exports in scenarios where the 
+net demand and exports linking constraint is relaxed and the consumer is exposed to export 
+prices that may be greater than the energy price (e.g., NEM 3.0). Note that infeasibilities 
+may occur if storage is not built or if an insufficient amount of storage is built, as the 
+upper bound of the storage exports could interfere with the preestablished lower bound.
 """
 function define_bes_export_upper_bound!(
     m::JuMP.Model,
