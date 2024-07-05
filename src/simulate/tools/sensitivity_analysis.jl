@@ -6,8 +6,9 @@
         incentives::Incentives,
         demand::Demand,
         solar::Solar,
-        storage::Storage,
-        output_filepath::Union{String,Nothing}=nothing;
+        storage::Storage;
+        output_filepath::Union{String,Nothing}=nothing,
+        save_optimizer_log::Bool=false,
         sensitivity_variable::String,
         sensitivity_parameter::String,
         sensitivity_values::Union{Vector{Float64},Vector{Int64}},
@@ -24,8 +25,9 @@ function perform_sensitivity_analysis(
     incentives::Incentives,
     demand::Demand,
     solar::Solar,
-    storage::Storage,
-    output_filepath::Union{String,Nothing}=nothing;
+    storage::Storage;
+    output_filepath::Union{String,Nothing}=nothing,
+    save_optimizer_log::Bool=false,
     sensitivity_variable::String,
     sensitivity_parameter::String,
     sensitivity_values::Union{Vector{Float64},Vector{Int64}},
@@ -115,11 +117,12 @@ function perform_sensitivity_analysis(
             incentives,
             demand,
             solar,
-            storage,
-            output_filepath_,
+            storage;
+            output_filepath=output_filepath_,
+            save_optimizer_log=save_optimizer_log,
         )
 
-        # Update the sensitivity analysis results to include the new timie-series results
+        # Update the sensitivity analysis results to include the new scenario results
         sensitivity_analysis_results[scenario_name] = results
     end
 

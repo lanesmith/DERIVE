@@ -6,8 +6,9 @@
         incentives::Incetives,
         demand::Demand,
         solar::Solar,
-        storage::Storage,
+        storage::Storage;
         output_filepath::Union{String,Nothing}=nothing,
+        save_optimizer_log::Bool=false,
     )::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
@@ -20,8 +21,9 @@ function simulate_by_year(
     incentives::Incentives,
     demand::Demand,
     solar::Solar,
-    storage::Storage,
+    storage::Storage;
     output_filepath::Union{String,Nothing}=nothing,
+    save_optimizer_log::Bool=false,
 )::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
     # Initialize the time-series results DataFrame
     time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
@@ -60,6 +62,25 @@ function simulate_by_year(
         storage,
         sets,
     )
+
+    # Allow the optimizer log to be saved, if desired
+    if save_optimizer_log & !isnothing(output_filepath)
+        if scenario.optimization_solver == "GUROBI"
+            JuMP.set_optimizer_attribute(
+                m,
+                "LogFile",
+                joinpath(output_filepath, "optimizer.log"),
+            )
+        else
+            throw(
+                ErrorException(
+                    "The log file for the " *
+                    scenario.optimization_solver *
+                    " optimizer cannot be saved. Please try again.",
+                ),
+            )
+        end
+    end
 
     # Solve the optimization problem
     JuMP.optimize!(m)

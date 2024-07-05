@@ -35,8 +35,9 @@ end
         incentives::Incentives,
         demand::Demand,
         solar::Solar,
-        storage::Storage,
+        storage::Storage;
         output_filepath::Union{String,Nothing}=nothing,
+        save_optimizer_log::Bool=false,
     )::Dict{String,Union{DataFrames.DataFrame,Dict}}
 
 Solve the specified optimization problem using one of the provided solution methods.
@@ -48,8 +49,9 @@ function solve_problem(
     incentives::Incentives,
     demand::Demand,
     solar::Solar,
-    storage::Storage,
+    storage::Storage;
     output_filepath::Union{String,Nothing}=nothing,
+    save_optimizer_log::Bool=false,
 )::Dict{String,Union{DataFrames.DataFrame,Dict}}
     # Initialize results Dict; holds time-series results, electricity bill results, and 
     # investment results (if applicable)
@@ -66,8 +68,9 @@ function solve_problem(
                 incentives,
                 demand,
                 solar,
-                storage,
-                output_filepath,
+                storage;
+                output_filepath=output_filepath,
+                save_optimizer_log=save_optimizer_log,
             )
         elseif scenario.optimization_horizon == "MONTH"
             results["time-series"], results["electricity_bill"] = simulate_by_month(
@@ -77,8 +80,9 @@ function solve_problem(
                 incentives,
                 demand,
                 solar,
-                storage,
-                output_filepath,
+                storage;
+                output_filepath=output_filepath,
+                save_optimizer_log=save_optimizer_log,
             )
         elseif scenario.optimization_horizon == "YEAR"
             results["time-series"], results["electricity_bill"], _ = simulate_by_year(
@@ -88,8 +92,9 @@ function solve_problem(
                 incentives,
                 demand,
                 solar,
-                storage,
-                output_filepath,
+                storage;
+                output_filepath=output_filepath,
+                save_optimizer_log=save_optimizer_log,
             )
         end
     elseif (scenario.problem_type == "CEM") & (scenario.optimization_horizon in ["YEAR"])
@@ -102,8 +107,9 @@ function solve_problem(
                     incentives,
                     demand,
                     solar,
-                    storage,
-                    output_filepath,
+                    storage;
+                    output_filepath=output_filepath,
+                    save_optimizer_log=save_optimizer_log,
                 )
         end
     else
