@@ -105,6 +105,19 @@ function create_tou_energy_charge_scaling_indicator_profile(
             v in values(tariff.months_by_season[k])
         )
 
+        # Check if the specified scaling period was the peak period, if applicable, and if 
+        # there is a partial-peak period that needs to be scaled too. This helps prevent 
+        # distortions from occurring when the spcified scaling period is to be reduced 
+        # (e.g., the peak-period prices do not fall below the partial-peak prices, thereby 
+        # creating a new 'peak' period).
+        if tariff.tou_energy_charge_scaling_period == "peak"
+            peak_and_partial_peak_indicator = Dict{String,Bool}(
+                s => "partial-peak" in
+                [tariff.energy_tou_rates[s][h]["label"] for h in range(0, 23)] for
+                s in keys(tariff.months_by_season)
+            )
+        end
+
         # Iterate through months and hours to set time-of-use energy charge scaling indicators
         for m in sort!(reduce(vcat, values(tariff.months_by_season)))
             for h in sort!(
@@ -127,6 +140,25 @@ function create_tou_energy_charge_scaling_indicator_profile(
                         1.0,
                         profile[!, "indicators"],
                     )
+
+                # Set indicators by hour, month, and alignment with the partial-peak period 
+                # if the peak period is the specified scaling period, if applicable
+                if peak_and_partial_peak_indicator[seasons_by_month[m]]
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            (Dates.hour.(profile.timestamp) .== h) .&
+                            (Dates.month.(profile.timestamp) .== m) .&
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][h]["label"] .==
+                                "partial-peak"
+                            ),
+                            findfirst(
+                                isequal(seasons_by_month[m]),
+                                sort(collect(keys(tariff.months_by_season))),
+                            ) + 1.0,
+                            profile[!, "indicators"],
+                        )
+                end
 
                 # Update the profile if there is a distinction between weekdays and weekends
                 if tariff.weekday_weekend_split

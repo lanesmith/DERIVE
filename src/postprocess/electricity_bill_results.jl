@@ -21,20 +21,36 @@ function calculate_electricity_bill(
     bill_results = Dict{String,Any}()
 
     # Determine the time-of-use energy charge scaling
-    if tariff.tou_energy_charge_scaling > 0.0
-        tou_energy_charge_scaling =
-            tariff.tou_energy_charge_scaling .*
-            tariff.tou_energy_charge_scaling_indicator[!, "indicators"]
-        replace!(tou_energy_charge_scaling, 0.0 => 1.0)
-    else
-        tou_energy_charge_scaling =
-            tariff.tou_energy_charge_scaling_indicator[!, "indicators"]
-        for i in eachindex(tou_energy_charge_scaling)
-            if tou_energy_charge_scaling[i] == 1.0
-                tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
-            else
+    tou_energy_charge_scaling = tariff.tou_energy_charge_scaling_indicator[!, "indicators"]
+    for i in eachindex(tou_energy_charge_scaling)
+        if tou_energy_charge_scaling[i] == 1.0
+            tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
+        elseif tou_energy_charge_scaling[i] in
+               range(2.0, length(tariff.months_by_season) + 1.0)
+            if tariff.tou_energy_charge_scaling == 1.0
                 tou_energy_charge_scaling[i] = 1.0
+            else
+                # Get the sorted season ID
+                season_name = sort(collect(keys(tariff.months_by_season)))[floor(
+                    Int64,
+                    tou_energy_charge_scaling[i] - 1.0,
+                )]
+
+                # Find the relevant peak, partial-peak, and off-peak energy prices
+                p = retrieve_tou_price(tariff, season_name, "peak")
+                pp = retrieve_tou_price(tariff, season_name, "partial-peak")
+                op = retrieve_tou_price(tariff, season_name, "off-peak")
+
+                # Find the relative placement of the partial-peak price between the peak 
+                # and off-peak prices
+                r = (pp - op) / (p - op)
+
+                # Find the related partial-peak scaling term
+                tou_energy_charge_scaling[i] =
+                    (r * (tariff.tou_energy_charge_scaling * p - op) + op) / pp
             end
+        else
+            tou_energy_charge_scaling[i] = 1.0
         end
     end
 
@@ -108,7 +124,7 @@ function calculate_electricity_bill(
             # Calculate NEM revenue
             if scenario.optimization_horizon == "YEAR"
                 bill_results["nem_revenue"] = sum(
-                    time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"]
+                    time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"],
                 )
             else
                 bill_results["nem_revenue"] = sum(
