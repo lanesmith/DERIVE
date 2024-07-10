@@ -225,7 +225,8 @@ function store_investment_cost_results(
     end
 
     # Determine the time-of-use energy charge scaling for calculating the base total charge
-    tou_energy_charge_scaling = tariff.tou_energy_charge_scaling_indicator[!, "indicators"]
+    tou_energy_charge_scaling =
+        deepcopy(tariff.tou_energy_charge_scaling_indicator[!, "indicators"])
     for i in eachindex(tou_energy_charge_scaling)
         if tou_energy_charge_scaling[i] == 1.0
             tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
@@ -234,7 +235,7 @@ function store_investment_cost_results(
             if tariff.tou_energy_charge_scaling == 1.0
                 tou_energy_charge_scaling[i] = 1.0
             else
-                # Get the sorted season ID
+                # Get the season name
                 season_name = sort(collect(keys(tariff.months_by_season)))[floor(
                     Int64,
                     tou_energy_charge_scaling[i] - 1.0,

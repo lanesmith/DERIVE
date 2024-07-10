@@ -122,7 +122,7 @@ function create_sets(
             if tariff.tou_energy_charge_scaling == 1.0
                 tou_energy_charge_scaling[i] = 1.0
             else
-                # Get the sorted season ID
+                # Get the season name
                 season_name = sort(collect(keys(tariff.months_by_season)))[floor(
                     Int64,
                     tou_energy_charge_scaling[i] - 1.0,
