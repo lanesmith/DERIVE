@@ -53,6 +53,13 @@ function solve_problem(
     output_filepath::Union{String,Nothing}=nothing,
     save_optimizer_log::Bool=false,
 )::Dict{String,Union{DataFrames.DataFrame,Dict}}
+    # Create a directory that corresponds to the specified output filepath, if applicable
+    if !isnothing(output_filepath)
+        if !isdir(output_filepath)
+            mkpath(output_filepath)
+        end
+    end
+
     # Initialize results Dict; holds time-series results, electricity bill results, and 
     # investment results (if applicable)
     results = Dict{String,Union{DataFrames.DataFrame,Dict}}()
