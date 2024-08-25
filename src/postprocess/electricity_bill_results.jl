@@ -20,11 +20,49 @@ function calculate_electricity_bill(
     # Initialize the electricity bill results
     bill_results = Dict{String,Any}()
 
+    # Determine the time-of-use energy charge scaling
+    tou_energy_charge_scaling =
+        deepcopy(tariff.tou_energy_charge_scaling_indicator[!, "indicators"])
+    for i in eachindex(tou_energy_charge_scaling)
+        if tou_energy_charge_scaling[i] == 1.0
+            tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
+        elseif tou_energy_charge_scaling[i] in
+               range(2.0, length(tariff.months_by_season) + 1.0)
+            if tariff.tou_energy_charge_scaling == 1.0
+                tou_energy_charge_scaling[i] = 1.0
+            else
+                # Get the season name
+                season_name = sort(collect(keys(tariff.months_by_season)))[floor(
+                    Int64,
+                    tou_energy_charge_scaling[i] - 1.0,
+                )]
+
+                # Find the relevant peak, partial-peak, and off-peak energy prices
+                p = retrieve_tou_price(tariff, season_name, "peak")
+                pp = retrieve_tou_price(tariff, season_name, "partial-peak")
+                op = retrieve_tou_price(tariff, season_name, "off-peak")
+
+                # Find the relative placement of the partial-peak price between the peak 
+                # and off-peak prices
+                r = (pp - op) / (p - op)
+
+                # Find the related partial-peak scaling term
+                tou_energy_charge_scaling[i] =
+                    (r * (tariff.tou_energy_charge_scaling * p - op) + op) / pp
+            end
+        else
+            tou_energy_charge_scaling[i] = 1.0
+        end
+    end
+
     # Calculate the total energy charge
     bill_results["energy_charge"] =
         tariff.all_charge_scaling *
         tariff.energy_charge_scaling *
-        sum(time_series_results[!, "net_demand"] .* tariff.energy_prices[!, "rates"])
+        sum(
+            time_series_results[!, "net_demand"] .* tou_energy_charge_scaling .*
+            tariff.energy_prices[!, "rates"],
+        )
 
     # Initialize the cost of the total electricity bill
     bill_results["total_charge"] = bill_results["energy_charge"]
@@ -44,29 +82,64 @@ function calculate_electricity_bill(
         bill_results["total_charge"] += bill_results["demand_charge"]
     end
 
-    # Calculate the total revenue from net energy metering (NEM), if applicable
+    # Calculate the total non-bypassable charges (a subset of the total energy charge) and 
+    # the total revenue from net energy metering (NEM), if applicable
     if tariff.nem_enabled & solar.enabled
-        # Calculate NEM revenue
         if tariff.nem_version == 1
+            # Calculate NEM revenue
             bill_results["nem_revenue"] =
                 tariff.all_charge_scaling *
                 tariff.energy_charge_scaling *
-                sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
+                sum(
+                    time_series_results[!, "net_exports"] .* tou_energy_charge_scaling .*
+                    tariff.nem_prices[!, "rates"],
+                )
+
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -=
+                min(bill_results["nem_revenue"], bill_results["energy_charge"])
         elseif tariff.nem_version == 2
+            # Calculate the non-bypassable charges
+            bill_results["non_bypassable_charge"] =
+                tariff.non_bypassable_charge * sum(time_series_results[!, "net_demand"])
+
+            # Calculate NEM revenue
             bill_results["nem_revenue"] = sum(
                 time_series_results[!, "net_exports"] .* (
-                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
-                        tariff.nem_prices[!, "rates"] .+ tariff.nem_2_non_bypassable_charge
-                    ) .- tariff.nem_2_non_bypassable_charge
+                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                    tou_energy_charge_scaling .*
+                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge)
                 ),
             )
-        else
-            bill_results["nem_revenue"] =
-                sum(time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"])
-        end
 
-        # Update the cost of the total electricity bill
-        bill_results["total_charge"] -= bill_results["nem_revenue"]
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -= min(
+                bill_results["nem_revenue"],
+                bill_results["energy_charge"] - bill_results["non_bypassable_charge"],
+            )
+        elseif tariff.nem_version == 3
+            # Calculate the non-bypassable charges
+            bill_results["non_bypassable_charge"] =
+                tariff.non_bypassable_charge * sum(time_series_results[!, "net_demand"])
+
+            # Calculate NEM revenue
+            if scenario.optimization_horizon == "YEAR"
+                bill_results["nem_revenue"] = sum(
+                    time_series_results[!, "net_exports"] .* tariff.nem_prices[!, "rates"],
+                )
+            else
+                bill_results["nem_revenue"] = sum(
+                    time_series_results[!, "net_exports"] .*
+                    (tariff.nem_prices[!, "rates"] .+ tariff.non_bypassable_charge),
+                )
+            end
+
+            # Update the cost of the total electricity bill
+            bill_results["total_charge"] -= min(
+                bill_results["nem_revenue"],
+                bill_results["energy_charge"] - bill_results["non_bypassable_charge"],
+            )
+        end
     end
 
     # Calculate the customer charge, if applicable
@@ -74,9 +147,10 @@ function calculate_electricity_bill(
         bill_results["customer_charge"] = 0
         for (k, v) in tariff.customer_charge
             if k == "daily"
-                bill_results["customer_charge"] += Dates.daysinyear(scenario.year) * v
+                bill_results["customer_charge"] +=
+                    tariff.all_charge_scaling * Dates.daysinyear(scenario.year) * v
             elseif k == "monthly"
-                bill_results["customer_charge"] += 12 * v
+                bill_results["customer_charge"] += tariff.all_charge_scaling * 12 * v
             end
         end
 

@@ -4,6 +4,7 @@
 A struct to hold information about the specific scenario under investigation.
 """
 Base.@kwdef struct Scenario
+    filepath::String
     problem_type::String
     interval_length::Int64
     optimization_horizon::String
@@ -12,13 +13,14 @@ Base.@kwdef struct Scenario
     latitude::Union{Float64,Nothing}
     longitude::Union{Float64,Nothing}
     timezone::Union{String,Nothing}
-    payback_period::Union{Int64,Nothing}
+    amortization_period::Union{Int64,Nothing}
     real_discount_rate::Union{Float64,Nothing}
     nominal_discount_rate::Union{Float64,Nothing}
     inflation_rate::Union{Float64,Nothing}
     year::Int64
     binary_net_demand_and_exports_linkage::Bool
     binary_pv_capacity_and_exports_linkage::Bool
+    specify_optimizer_attributes::Bool
 end
 
 """
@@ -41,7 +43,8 @@ Base.@kwdef struct Tariff
     daily_demand_tou_rates::Union{Dict,Nothing}
     nem_enabled::Bool
     nem_version::Int64
-    nem_2_non_bypassable_charge::Union{Float64,Nothing}
+    non_bypassable_charge::Union{Float64,Nothing}
+    average_nem_3_over_years::Bool
     customer_charge::Dict
     energy_prices::Union{DataFrames.DataFrame,Nothing}
     demand_prices::Union{Dict,Nothing}
@@ -49,6 +52,9 @@ Base.@kwdef struct Tariff
     nem_prices::Union{DataFrames.DataFrame,Nothing}
     energy_charge_scaling::Float64
     demand_charge_scaling::Float64
+    tou_energy_charge_scaling::Float64
+    tou_energy_charge_scaling_period::Union{String,Nothing}
+    tou_energy_charge_scaling_indicator::Union{DataFrames.DataFrame,Nothing}
     all_charge_scaling::Float64
 end
 
@@ -136,6 +142,7 @@ Base.@kwdef struct Solar
     inverter_eff::Float64
     lifespan::Union{Int64,Nothing}
     investment_tax_credit::Float64
+    linked_cost_scaling::Float64
 end
 
 """
@@ -161,6 +168,7 @@ Base.@kwdef struct Storage
     fixed_om_cost::Union{Float64,Nothing}
     lifespan::Union{Int64,Nothing}
     investment_tax_credit::Float64
+    linked_cost_scaling::Float64
 end
 
 """

@@ -2,8 +2,11 @@
     store_investment_cost_results(
         m::JuMP.Model,
         scenario::Scenario,
+        tariff::Tariff,
+        demand::Demand,
         solar::Solar,
         storage::Storage,
+        electricity_bill::Dict{String,Any},
         output_filepath::Union{String,Nothing}=nothing,
     )::Dict{String,Any}
 
@@ -14,8 +17,11 @@ saved, if desired.
 function store_investment_cost_results(
     m::JuMP.Model,
     scenario::Scenario,
+    tariff::Tariff,
+    demand::Demand,
     solar::Solar,
     storage::Storage,
+    electricity_bill::Dict{String,Any},
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict{String,Any}
     # Initialize the investment cost results
@@ -40,6 +46,9 @@ function store_investment_cost_results(
         investment_cost_results["real_discount_rate"] = scenario.real_discount_rate
     end
 
+    # Initialize the payback period calculation
+    investment_cost_results["payback_period"] = 0
+
     if solar.enabled
         # Store the solar photovoltaic (PV) capacity
         investment_cost_results["solar_capacity"] = JuMP.value(m[:pv_capacity])
@@ -48,35 +57,53 @@ function store_investment_cost_results(
         investment_cost_results["solar_lifespan"] = solar.lifespan
 
         # Store the solar capital cost (i.e., $/kW cost)
-        investment_cost_results["solar_capital_cost_per_kW"] = solar.capital_cost
+        investment_cost_results["solar_capital_cost_per_kW"] =
+            solar.linked_cost_scaling * solar.capital_cost
 
         # Store the total capital cost of the solar PV system
         investment_cost_results["total_solar_capital_cost"] =
-            solar.capital_cost * JuMP.value(m[:pv_capacity])
+            solar.linked_cost_scaling * solar.capital_cost * JuMP.value(m[:pv_capacity])
+
+        # Store the amortization period for the solar PV system
+        if isnothing(scenario.amortization_period)
+            investment_cost_results["solar_amortization_period"] = solar.lifespan
+        else
+            investment_cost_results["solar_amortization_period"] =
+                scenario.amortization_period
+        end
 
         # Store the capital recovery factor for the solar PV system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
-            investment_cost_results["solar_capital_recovery_factor"] = 1 / solar.lifespan
+            investment_cost_results["solar_capital_recovery_factor"] =
+                1 / investment_cost_results["solar_amortization_period"]
         else
             investment_cost_results["solar_capital_recovery_factor"] =
                 (
                     investment_cost_results["real_discount_rate"] *
-                    (1 + investment_cost_results["real_discount_rate"])^solar.lifespan
-                ) / ((1 + investment_cost_results["real_discount_rate"])^solar.lifespan - 1)
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["solar_amortization_period"]
+                ) / (
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["solar_amortization_period"] - 1
+                )
         end
 
         # Store the amortized capital cost of the solar PV system
         investment_cost_results["amortized_solar_capital_cost"] =
             investment_cost_results["solar_capital_recovery_factor"] *
+            solar.linked_cost_scaling *
             solar.capital_cost *
             JuMP.value(m[:pv_capacity])
 
         # Store the solar O&M cost (i.e., $/kW-yr cost)
-        investment_cost_results["solar_o&m_cost_per_kW_per_year"] = solar.fixed_om_cost
+        investment_cost_results["solar_o&m_cost_per_kW_per_year"] =
+            solar.linked_cost_scaling * solar.fixed_om_cost
 
         # Store the total O&M cost of the solar PV system for one year
         investment_cost_results["solar_o&m_cost"] =
-            solar.fixed_om_cost * JuMP.value(m[:pv_capacity])
+            solar.linked_cost_scaling * solar.fixed_om_cost * JuMP.value(m[:pv_capacity])
 
         if solar.investment_tax_credit > 0.0
             # Store the solar investment tax credit (ITC) percentage
@@ -85,6 +112,7 @@ function store_investment_cost_results(
             # Store the total solar ITC
             investment_cost_results["total_solar_itc_amount"] =
                 solar.investment_tax_credit *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 JuMP.value(m[:pv_capacity])
 
@@ -92,9 +120,17 @@ function store_investment_cost_results(
             investment_cost_results["amortized_solar_ITC_amount"] =
                 investment_cost_results["solar_capital_recovery_factor"] *
                 solar.investment_tax_credit *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 JuMP.value(m[:pv_capacity])
         end
+
+        # Update the payback period calculation to include solar capital costs
+        investment_cost_results["payback_period"] +=
+            (
+                investment_cost_results["amortized_solar_capital_cost"] +
+                investment_cost_results["solar_o&m_cost"]
+            ) * investment_cost_results["solar_amortization_period"]
     end
 
     if storage.enabled
@@ -108,37 +144,57 @@ function store_investment_cost_results(
         investment_cost_results["storage_duration"] = storage.duration
 
         # Store the storage capital cost (i.e., $/kW cost for a specific storage duration)
-        investment_cost_results["storage_capital_cost_per_kW"] = storage.power_capital_cost
+        investment_cost_results["storage_capital_cost_per_kW"] =
+            storage.linked_cost_scaling * storage.power_capital_cost
 
         # Store the total capital cost of the BES system
         investment_cost_results["total_storage_capital_cost"] =
-            storage.power_capital_cost * JuMP.value(m[:bes_power_capacity])
+            storage.linked_cost_scaling *
+            storage.power_capital_cost *
+            JuMP.value(m[:bes_power_capacity])
+
+        # Store the amortization period for the BES system
+        if isnothing(scenario.amortization_period)
+            investment_cost_results["storage_amortization_period"] = storage.lifespan
+        else
+            investment_cost_results["storage_amortization_period"] =
+                scenario.amortization_period
+        end
 
         # Store the capital recovery factor for the BES system
         if isnothing(scenario.nominal_discount_rate) | isnothing(scenario.inflation_rate)
             investment_cost_results["storage_capital_recovery_factor"] =
-                1 / storage.lifespan
+                1 / investment_cost_results["storage_amortization_period"]
         else
             investment_cost_results["storage_capital_recovery_factor"] =
                 (
                     investment_cost_results["real_discount_rate"] *
-                    (1 + investment_cost_results["real_discount_rate"])^storage.lifespan
-                ) /
-                ((1 + investment_cost_results["real_discount_rate"])^storage.lifespan - 1)
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["storage_amortization_period"]
+                ) / (
+                    (
+                        1 + investment_cost_results["real_discount_rate"]
+                    )^investment_cost_results["storage_amortization_period"] - 1
+                )
         end
 
         # Store the amortized capital cost of the BES system
         investment_cost_results["amortized_storage_capital_cost"] =
             investment_cost_results["storage_capital_recovery_factor"] *
+            storage.linked_cost_scaling *
             storage.power_capital_cost *
             JuMP.value(m[:bes_power_capacity])
 
         # Store the storage O&M cost (i.e., $/kW-yr cost)
-        investment_cost_results["storage_o&m_cost_per_kW_per_year"] = storage.fixed_om_cost
+        investment_cost_results["storage_o&m_cost_per_kW_per_year"] =
+            storage.linked_cost_scaling * storage.fixed_om_cost
 
         # Store the total O&M cost of the BES system for one year
         investment_cost_results["storage_o&m_cost"] =
-            storage.fixed_om_cost * JuMP.value(m[:bes_power_capacity])
+            storage.linked_cost_scaling *
+            storage.fixed_om_cost *
+            JuMP.value(m[:bes_power_capacity])
 
         if storage.investment_tax_credit > 0.0
             # Store the storage ITC percentage
@@ -147,6 +203,7 @@ function store_investment_cost_results(
             # Store the total storage ITC
             investment_cost_results["total_storage_itc_amount"] =
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 JuMP.value(m[:bes_power_capacity])
 
@@ -154,10 +211,85 @@ function store_investment_cost_results(
             investment_cost_results["amortized_storage_ITC_amount"] =
                 investment_cost_results["storage_capital_recovery_factor"] *
                 storage.investment_tax_credit *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 JuMP.value(m[:bes_power_capacity])
         end
+
+        # Update the payback period calculation to include storage capital costs
+        investment_cost_results["payback_period"] +=
+            (
+                investment_cost_results["amortized_storage_capital_cost"] +
+                investment_cost_results["storage_o&m_cost"]
+            ) * investment_cost_results["storage_amortization_period"]
     end
+
+    # Determine the time-of-use energy charge scaling for calculating the base total charge
+    tou_energy_charge_scaling =
+        deepcopy(tariff.tou_energy_charge_scaling_indicator[!, "indicators"])
+    for i in eachindex(tou_energy_charge_scaling)
+        if tou_energy_charge_scaling[i] == 1.0
+            tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
+        elseif tou_energy_charge_scaling[i] in
+               range(2.0, length(tariff.months_by_season) + 1.0)
+            if tariff.tou_energy_charge_scaling == 1.0
+                tou_energy_charge_scaling[i] = 1.0
+            else
+                # Get the season name
+                season_name = sort(collect(keys(tariff.months_by_season)))[floor(
+                    Int64,
+                    tou_energy_charge_scaling[i] - 1.0,
+                )]
+
+                # Find the relevant peak, partial-peak, and off-peak energy prices
+                p = retrieve_tou_price(tariff, season_name, "peak")
+                pp = retrieve_tou_price(tariff, season_name, "partial-peak")
+                op = retrieve_tou_price(tariff, season_name, "off-peak")
+
+                # Find the relative placement of the partial-peak price between the peak 
+                # and off-peak prices
+                r = (pp - op) / (p - op)
+
+                # Find the related partial-peak scaling term
+                tou_energy_charge_scaling[i] =
+                    (r * (tariff.tou_energy_charge_scaling * p - op) + op) / pp
+            end
+        else
+            tou_energy_charge_scaling[i] = 1.0
+        end
+    end
+
+    # Calculate the total electricity bill without the impact of solar or storage
+    base_total_charge =
+        tariff.all_charge_scaling *
+        tariff.energy_charge_scaling *
+        sum(
+            demand.demand_profile[!, "demand"] .* tou_energy_charge_scaling .*
+            tariff.energy_prices[!, "rates"],
+        )
+    if !isnothing(tariff.demand_prices)
+        base_total_charge +=
+            tariff.all_charge_scaling *
+            tariff.demand_charge_scaling *
+            sum(
+                v * maximum(tariff.demand_mask[!, k] .* demand.demand_profile[!, "demand"])
+                for (k, v) in tariff.demand_prices
+            )
+    end
+    if collect(values(tariff.customer_charge)) != zeros(length(tariff.customer_charge))
+        for (k, v) in tariff.customer_charge
+            if k == "daily"
+                base_total_charge +=
+                    tariff.all_charge_scaling * Dates.daysinyear(scenario.year) * v
+            elseif k == "monthly"
+                base_total_charge += tariff.all_charge_scaling * 12 * v
+            end
+        end
+    end
+
+    # Calculate the payback period
+    investment_cost_results["payback_period"] /=
+        (base_total_charge - electricity_bill["total_charge"])
 
     # Save the electricity bill results, if desired
     if !isnothing(output_filepath)

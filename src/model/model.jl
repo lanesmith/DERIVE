@@ -44,7 +44,7 @@ function define_objective_function!(
 
     # Add in variable cost associated with the simple shiftable demand model, if applicable
     if demand.simple_shift_enabled
-        define_shiftable_demand_variable_cost_objective!(m, obj, demand)
+        define_shiftable_demand_variable_cost_objective!(m, obj, scenario, demand)
     end
 
     # Add in variable cost associated with the sheddable demand model, if applicable
@@ -105,7 +105,7 @@ function build_optimization_model(
     storage::Storage,
     sets::Sets,
 )::JuMP.Model
-    # Determine the solver
+    # Determine the optimizer
     if scenario.optimization_solver == "GLPK"
         s = GLPK.Optimizer
     elseif scenario.optimization_solver == "GUROBI"
@@ -116,6 +116,14 @@ function build_optimization_model(
 
     # Build initial JuMP optimization model
     m = JuMP.Model(s)
+
+    # Set some optimizer attributes, if enabled
+    if scenario.specify_optimizer_attributes
+        optimizer_attributes = read_optimizer_attributes(scenario.filepath)
+        for (k, v) in optimizer_attributes
+            JuMP.set_optimizer_attribute(m, k, v)
+        end
+    end
 
     # Define demand-related variables and expressions
     define_demand_variables!(m, tariff, solar, sets)
@@ -154,6 +162,15 @@ function build_optimization_model(
         define_bes_nonimport_constraint!(m, solar, sets)
     end
 
+    # Define the constraint that places a cap on the annual net energy metering revenue 
+    # that the consumer can collect, if applicable
+    if (scenario.optimization_horizon == "YEAR") &
+       tariff.nem_enabled &
+       (tariff.nem_version in [2, 3]) &
+       solar.enabled
+        define_annual_net_energy_metering_revenue_cap!(m, tariff, sets)
+    end
+
     # Define the linkage between net demand and exports, if enabled and applicable
     if tariff.nem_enabled & solar.enabled & scenario.binary_net_demand_and_exports_linkage
         define_net_demand_and_exports_linkage!(m, scenario, solar, storage, sets)
@@ -180,7 +197,7 @@ function build_optimization_model(
         end
 
         # Include the constraint
-        define_pv_capacity_and_exports_linkage!(m, scenario, solar, storage, sets)
+        define_pv_capacity_and_exports_linkage!(m, solar, storage, sets)
     end
 
     # Define the objective function of the optimization model

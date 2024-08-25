@@ -71,6 +71,130 @@ function create_energy_rate_profile(
 end
 
 """
+    create_tou_energy_charge_scaling_indicator_profile(
+        scenario::Scenario,
+        tariff::Tariff,
+    )::DataFrames.DataFrame
+
+Creates the profile that indicates the time steps that should have scaled energy prices
+according to the specified time-of-use period.
+"""
+function create_tou_energy_charge_scaling_indicator_profile(
+    scenario::Scenario,
+    tariff::Tariff,
+)::DataFrames.DataFrame
+    # Create annual profile with specified time increments
+    profile = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+        ),
+        "indicators" => zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
+            ),
+        ),
+    )
+
+    if !isnothing(tariff.tou_energy_charge_scaling_period)
+        # Create inverse mapping of seasons to months
+        seasons_by_month = Dict{Int64,String}(
+            v => k for k in keys(tariff.months_by_season) for
+            v in values(tariff.months_by_season[k])
+        )
+
+        # Check if the specified scaling period was the peak period, if applicable, and if 
+        # there is a partial-peak period that needs to be scaled too. This helps prevent 
+        # distortions from occurring when the spcified scaling period is to be reduced 
+        # (e.g., the peak-period prices do not fall below the partial-peak prices, thereby 
+        # creating a new 'peak' period).
+        if tariff.tou_energy_charge_scaling_period == "peak"
+            peak_and_partial_peak_indicator = Dict{String,Bool}(
+                s => "partial-peak" in
+                [tariff.energy_tou_rates[s][h]["label"] for h in range(0, 23)] for
+                s in keys(tariff.months_by_season)
+            )
+        end
+
+        # Iterate through months and hours to set time-of-use energy charge scaling indicators
+        for m in sort!(reduce(vcat, values(tariff.months_by_season)))
+            for h in sort!(
+                collect(
+                    keys(
+                        tariff.energy_tou_rates[collect(keys(tariff.energy_tou_rates))[1]],
+                    ),
+                ),
+            )
+                # Set indicators by hour, month, and alignment with the specified scaling 
+                # period
+                profile[!, "indicators"] .=
+                    ifelse.(
+                        (Dates.hour.(profile.timestamp) .== h) .&
+                        (Dates.month.(profile.timestamp) .== m) .&
+                        (
+                            tariff.energy_tou_rates[seasons_by_month[m]][h]["label"] .==
+                            tariff.tou_energy_charge_scaling_period
+                        ),
+                        1.0,
+                        profile[!, "indicators"],
+                    )
+
+                # Set indicators by hour, month, and alignment with the partial-peak period 
+                # if the peak period is the specified scaling period, if applicable
+                if peak_and_partial_peak_indicator[seasons_by_month[m]]
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            (Dates.hour.(profile.timestamp) .== h) .&
+                            (Dates.month.(profile.timestamp) .== m) .&
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][h]["label"] .==
+                                "partial-peak"
+                            ),
+                            findfirst(
+                                isequal(seasons_by_month[m]),
+                                sort(collect(keys(tariff.months_by_season))),
+                            ) + 1.0,
+                            profile[!, "indicators"],
+                        )
+                end
+
+                # Update the profile if there is a distinction between weekdays and weekends
+                if tariff.weekday_weekend_split
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            identify_weekends.(profile.timestamp, m),
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                tariff.tou_energy_charge_scaling_period
+                            ) ? 1.0 : 0.0,
+                            profile[!, "indicators"],
+                        )
+                end
+
+                # Update the profile if there is a distinction between holidays and 
+                # non-holidays
+                if tariff.holiday_split
+                    profile[!, "indicators"] .=
+                        ifelse.(
+                            identify_holidays.(profile.timestamp, m),
+                            (
+                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                tariff.tou_energy_charge_scaling_period
+                            ) ? 1.0 : 0.0,
+                            profile[!, "indicators"],
+                        )
+                end
+            end
+        end
+    end
+
+    # Return the profile for the time-of-use energy charge scaling indicators
+    return profile
+end
+
+"""
     create_demand_rate_profile(
         scenario::Scenario,
         tariff::Tariff,
@@ -321,10 +445,14 @@ function create_nem_price_profile(
     elseif tariff.nem_version == 2
         # Under NEM 2.0, the sell rate is the energy rate minus the non-bypassable charge
         profile = deepcopy(energy_price_profile)
-        profile[!, "rates"] .-= tariff.nem_2_non_bypassable_charge
+        profile[!, "rates"] .-= tariff.non_bypassable_charge
     elseif tariff.nem_version == 3
-        # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators
-        profile = calculate_nem_3_price_profile(scenario, filepath)
+        # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators 
+        # and minus the non-bypassable charge
+        profile = calculate_nem_3_price_profile(scenario, tariff, filepath)
+        if scenario.optimization_horizon != "YEAR"
+            profile[!, "rates"] .-= tariff.non_bypassable_charge
+        end
     end
 
     # Return the profile for NEM sell rates
@@ -332,8 +460,9 @@ function create_nem_price_profile(
 end
 
 """
-    calculate_nem_3_profiles(
+    calculate_nem_3_profile(
         scenario::Scenario,
+        tariff::Tariff,
         filepath::String,
         save::Bool=false,
     )::DataFrames.DataFrame
@@ -344,53 +473,83 @@ avoided cost calculator.
 """
 function calculate_nem_3_price_profile(
     scenario::Scenario,
+    tariff::Tariff,
     filepath::String,
     save::Bool=false,
 )::DataFrames.DataFrame
-    # Initialize variables to hold avoided cost calculator (ACC) values and the number of 
-    # climate zones
-    acc_profile = zeros(8760)
-    acc_profile_cz = zeros(8760)
-    cz_counter = 0
-
-    # Add the ACC component prices together
-    for i in readdir(joinpath(filepath, "nem_3_data"))
-        if occursin("CZ", i)
-            # Read in the ACC distribution capacity price profile
-            acc_profile_cz .+=
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                    !,
-                    string(scenario.year),
-                ]
-
-            # Increment the number of climate zones
-            cz_counter += 1
+    # Determine if the NEM 3.0 profile will consist of prices for the specified year or 
+    # averaged prices over many years. If the latter, the amortization_period parameter in 
+    # scenario must be specified
+    if tariff.average_nem_3_over_years
+        if isnothing(scenario.amortization_period)
+            throw(
+                ErrorException(
+                    "The amortization period is not specified, so the averaged NEM 3.0 " *
+                    "cannot be created. Please try again.",
+                ),
+            )
         else
-            # Read in the ACC component price profile
-            acc_profile .+=
-                DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                    !,
-                    string(scenario.year),
-                ]
+            end_year = scenario.year + scenario.amortization_period - 1
         end
+    else
+        end_year = scenario.year
     end
 
-    # Scale the summed distribution capacity profiles by the number of cliamte zones and 
-    # add to the other summed ACC component price profiles
-    acc_profile .+= (1 / cz_counter) .* acc_profile_cz
+    # Initialise the DataFrame that will collect the annual profile(s) of ACC prices
+    acc_profile = DataFrames.DataFrame("timestamp" => [], "rates" => [])
 
-    # Create annual profile for ACC prices with hourly time increments
-    acc_profile = DataFrames.DataFrame(
-        "timestamp" => collect(
-            Dates.DateTime(scenario.year, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
-                scenario.year,
-                12,
-                31,
-                23,
+    # Iterate through each year under consideration
+    for y in range(scenario.year, end_year)
+        # Initialize variables to hold avoided cost calculator (ACC) values and the number 
+        # of climate zones. Uses a number of time steps consistent with that used in the 
+        # ACC data
+        acc_profile_one_year = zeros(8760)
+        acc_profile_cz = zeros(8760)
+        cz_counter = 0
+
+        # Add the ACC component prices together
+        for i in readdir(joinpath(filepath, "nem_3_data"))
+            if occursin("CZ", i)
+                # Read in the ACC distribution capacity price profile
+                acc_profile_cz .+=
+                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                        !,
+                        string(y),
+                    ]
+
+                # Increment the number of climate zones
+                cz_counter += 1
+            else
+                # Read in the ACC component price profile
+                acc_profile_one_year .+=
+                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
+                        !,
+                        string(y),
+                    ]
+            end
+        end
+
+        # Scale the summed distribution capacity profiles by the number of cliamte zones 
+        # and add to the other summed ACC component price profiles
+        acc_profile_one_year .+= (1 / cz_counter) .* acc_profile_cz
+
+        # Update annual profile for ACC prices with hourly time increments. Uses time steps 
+        # consistent with those included in the ACC data
+        acc_profile = vcat(
+            acc_profile,
+            DataFrames.DataFrame(
+                "timestamp" => collect(
+                    Dates.DateTime(2020, 1, 1, 0):Dates.Hour(1):Dates.DateTime(
+                        2020,
+                        12,
+                        30,
+                        23,
+                    ),
+                ),
+                "rates" => acc_profile_one_year ./ 1000,
             ),
-        ),
-        "rates" => acc_profile ./ 1000,
-    )
+        )
+    end
 
     # Create dictionary of average prices by month, hour, and weekday vs. weekend/holiday
     average_prices = Dict{Int64,Any}(
@@ -530,6 +689,10 @@ function create_rate_profiles(
         tariff_["nem_prices"] =
             create_nem_price_profile(scenario, tariff, tariff_["energy_prices"], filepath)
     end
+
+    # Create the time-of-use energy charge scaling indicator profile
+    tariff_["tou_energy_charge_scaling_indicator"] =
+        create_tou_energy_charge_scaling_indicator_profile(scenario, tariff)
 
     # Convert Dict to NamedTuple
     tariff_ = (; (Symbol(k) => v for (k, v) in tariff_)...)

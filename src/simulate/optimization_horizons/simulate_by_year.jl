@@ -6,10 +6,10 @@
         incentives::Incetives,
         demand::Demand,
         solar::Solar,
-        storage::Storage,
-        time_series_results::DataFrames.DataFrame,
+        storage::Storage;
         output_filepath::Union{String,Nothing}=nothing,
-    )::Tuple{DataFrames.DataFrame,Dict}
+        save_optimizer_log::Bool=false,
+    )::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
 necessary results.
@@ -21,10 +21,13 @@ function simulate_by_year(
     incentives::Incentives,
     demand::Demand,
     solar::Solar,
-    storage::Storage,
-    time_series_results::DataFrames.DataFrame,
+    storage::Storage;
     output_filepath::Union{String,Nothing}=nothing,
-)::Tuple{DataFrames.DataFrame,Union{Dict,Nothing}}
+    save_optimizer_log::Bool=false,
+)::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
+    # Initialize the time-series results DataFrame
+    time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
+
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial
@@ -60,12 +63,42 @@ function simulate_by_year(
         sets,
     )
 
+    # Allow the optimizer log to be saved, if desired
+    if save_optimizer_log & !isnothing(output_filepath)
+        if scenario.optimization_solver == "GUROBI"
+            JuMP.set_optimizer_attribute(
+                m,
+                "LogFile",
+                joinpath(output_filepath, "optimizer.log"),
+            )
+        else
+            throw(
+                ErrorException(
+                    "The log file for the " *
+                    scenario.optimization_solver *
+                    " optimizer cannot be saved. Please try again.",
+                ),
+            )
+        end
+    end
+
     # Solve the optimization problem
     JuMP.optimize!(m)
 
     # Check that the optimization problem was solved succesfully
     if JuMP.termination_status(m) != JuMP.MOI.OPTIMAL
-        throw(ErrorException("Optimization problem failed to solve. Please try again."))
+        if JuMP.termination_status(m) == JuMP.MOI.TIME_LIMIT
+            if JuMP.result_count(m) == 0
+                throw(
+                    ErrorException(
+                        "Optimization problem failed to yield a feasible solution within " *
+                        "the allotted time. Please try again.",
+                    ),
+                )
+            end
+        else
+            throw(ErrorException("Optimization problem failed to solve. Please try again."))
+        end
     end
 
     # Store the necessary time-series results
@@ -76,14 +109,31 @@ function simulate_by_year(
         CSV.write(joinpath(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
+    # Caluclate the electricity bill components
+    electricity_bill = calculate_electricity_bill(
+        scenario,
+        tariff,
+        solar,
+        time_series_results,
+        output_filepath,
+    )
+
     # Store the investment-cost results, if applicable
     if scenario.problem_type == "CEM"
-        investment_cost_results =
-            store_investment_cost_results(m, scenario, solar, storage, output_filepath)
+        investment_cost_results = store_investment_cost_results(
+            m,
+            scenario,
+            tariff,
+            demand,
+            solar,
+            storage,
+            electricity_bill,
+            output_filepath,
+        )
     else
         investment_cost_results = nothing
     end
 
     # Return the results
-    return time_series_results, investment_cost_results
+    return time_series_results, electricity_bill, investment_cost_results
 end

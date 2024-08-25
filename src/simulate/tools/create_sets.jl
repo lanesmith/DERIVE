@@ -105,9 +105,51 @@ function create_sets(
         ]
     end
 
+    # Determine the time-of-use energy charge scaling
+    tou_energy_charge_scaling = filter(
+        row -> row["timestamp"] in
+        start_index:Dates.Minute(scenario.interval_length):end_index,
+        tariff.tou_energy_charge_scaling_indicator,
+    )[
+        !,
+        "indicators",
+    ]
+    for i in eachindex(tou_energy_charge_scaling)
+        if tou_energy_charge_scaling[i] == 1.0
+            tou_energy_charge_scaling[i] *= tariff.tou_energy_charge_scaling
+        elseif tou_energy_charge_scaling[i] in
+               range(2.0, length(tariff.months_by_season) + 1.0)
+            if tariff.tou_energy_charge_scaling == 1.0
+                tou_energy_charge_scaling[i] = 1.0
+            else
+                # Get the season name
+                season_name = sort(collect(keys(tariff.months_by_season)))[floor(
+                    Int64,
+                    tou_energy_charge_scaling[i] - 1.0,
+                )]
+
+                # Find the relevant peak, partial-peak, and off-peak energy prices
+                p = retrieve_tou_price(tariff, season_name, "peak")
+                pp = retrieve_tou_price(tariff, season_name, "partial-peak")
+                op = retrieve_tou_price(tariff, season_name, "off-peak")
+
+                # Find the relative placement of the partial-peak price between the peak 
+                # and off-peak prices
+                r = (pp - op) / (p - op)
+
+                # Find the related partial-peak scaling term
+                tou_energy_charge_scaling[i] =
+                    (r * (tariff.tou_energy_charge_scaling * p - op) + op) / pp
+            end
+        else
+            tou_energy_charge_scaling[i] = 1.0
+        end
+    end
+
     # Partition the energy prices accordingly
     sets["energy_prices"] =
-        tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+        tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+        tou_energy_charge_scaling .* filter(
             row -> row["timestamp"] in
             start_index:Dates.Minute(scenario.interval_length):end_index,
             tariff.energy_prices,
@@ -266,7 +308,8 @@ function create_sets(
     if tariff.nem_enabled & solar.enabled
         if tariff.nem_version == 1
             sets["nem_prices"] =
-                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* filter(
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                tou_energy_charge_scaling .* filter(
                     row -> row["timestamp"] in
                     start_index:Dates.Minute(scenario.interval_length):end_index,
                     tariff.nem_prices,
@@ -276,7 +319,8 @@ function create_sets(
                 ]
         elseif tariff.nem_version == 2
             sets["nem_prices"] =
-                tariff.all_charge_scaling .* tariff.energy_charge_scaling .* (
+                tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                tou_energy_charge_scaling .* (
                     filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,
@@ -284,8 +328,8 @@ function create_sets(
                     )[
                         !,
                         "rates",
-                    ] .+ tariff.nem_2_non_bypassable_charge
-                ) .- tariff.nem_2_non_bypassable_charge
+                    ] .+ tariff.non_bypassable_charge
+                ) .- tariff.non_bypassable_charge
         else
             sets["nem_prices"] = filter(
                 row -> row["timestamp"] in
@@ -318,4 +362,39 @@ function create_sets(
     sets = Sets(; sets...)
 
     return sets
+end
+
+"""
+    retrieve_tou_price(
+        tariff::Tariff,
+        season_name::String,
+        tou_period_name::String,
+    )::Float64
+
+Returns the energy price associated with a specified time-of-use period in a specified 
+season.
+"""
+function retrieve_tou_price(
+    tariff::Tariff,
+    season_name::String,
+    tou_period_name::String,
+)::Float64
+    # Look for the energy price associated with the specified time-of-use period and month
+    for hour_dict in values(tariff.energy_tou_rates[season_name])
+        if hour_dict["label"] == tou_period_name
+            return hour_dict["rate"]
+        end
+    end
+
+    # Throw an error if the specified time-of-use period does not exist in the specified 
+    # month
+    throw(
+        ErrorException(
+            "The " *
+            tou_period_name *
+            " period does not exist for the " *
+            season_name *
+            " season within the provided tariff information. Please try again.",
+        ),
+    )
 end

@@ -168,13 +168,22 @@ function define_solar_pv_capital_cost_objective!(
             ),
         )
     else
+        # Establish the amortization period
+        if isnothing(scenario.amortization_period)
+            amortization_period = solar.lifespan
+        else
+            amortization_period = scenario.amortization_period
+        end
+
+        # Determine the amortized capital cost
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
                 # Use a simple amortization if the necessary information is not provided
                 JuMP.add_to_expression!(
                     obj,
-                    solar.capital_cost * m[:pv_capacity] / solar.lifespan,
+                    solar.linked_cost_scaling * solar.capital_cost * m[:pv_capacity] /
+                    amortization_period,
                 )
             else
                 # Calculate the real discount rate using the nominal discount rate and 
@@ -187,9 +196,12 @@ function define_solar_pv_capital_cost_objective!(
                 JuMP.add_to_expression!(
                     obj,
                     (
-                        (real_discount_rate * (1 + real_discount_rate)^solar.lifespan) /
-                        ((1 + real_discount_rate)^solar.lifespan - 1)
+                        (
+                            real_discount_rate *
+                            (1 + real_discount_rate)^amortization_period
+                        ) / ((1 + real_discount_rate)^amortization_period - 1)
                     ) *
+                    solar.linked_cost_scaling *
                     solar.capital_cost *
                     m[:pv_capacity],
                 )
@@ -201,9 +213,10 @@ function define_solar_pv_capital_cost_objective!(
                 (
                     (
                         scenario.real_discount_rate *
-                        (1 + scenario.real_discount_rate)^solar.lifespan
-                    ) / ((1 + scenario.real_discount_rate)^solar.lifespan - 1)
+                        (1 + scenario.real_discount_rate)^amortization_period
+                    ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
                 ) *
+                solar.linked_cost_scaling *
                 solar.capital_cost *
                 m[:pv_capacity],
             )
@@ -213,6 +226,9 @@ function define_solar_pv_capital_cost_objective!(
     # Add the annual fixed operation and maintenance (O&M) cost associated with building 
     # the determined PV system to the objective function
     if !isnothing(solar.fixed_om_cost)
-        JuMP.add_to_expression!(obj, solar.fixed_om_cost * m[:pv_capacity])
+        JuMP.add_to_expression!(
+            obj,
+            solar.linked_cost_scaling * solar.fixed_om_cost * m[:pv_capacity],
+        )
     end
 end

@@ -116,6 +116,7 @@ end
     define_shiftable_demand_variable_cost_objective!(
         m::JuMP.Model,
         obj::JuMP.AffExpr,
+        scenario::Scenario,
         demand::Demand,
     )
 
@@ -125,6 +126,7 @@ demand profile to the objective function.
 function define_shiftable_demand_variable_cost_objective!(
     m::JuMP.Model,
     obj::JuMP.AffExpr,
+    scenario::Scenario,
     demand::Demand,
 )
     # Add the variable cost of deviating from the consumer's demand profile

@@ -38,6 +38,7 @@ function define_battery_energy_storage_model!(
     define_bes_discharging_upper_bound!(m, scenario, tariff, solar, storage, sets)
     define_bes_soc_lower_bound!(m, scenario, storage, sets)
     define_bes_soc_upper_bound!(m, scenario, storage, sets)
+    define_bes_export_upper_bound!(m, scenario, tariff, solar, storage, sets)
 end
 
 """
@@ -392,6 +393,75 @@ function define_bes_soc_upper_bound!(
 end
 
 """
+    define_bes_export_upper_bound!(
+        m::JuMP.Model,
+        scenario::Scenario,
+        tariff::Tariff,
+        solar::Solar,
+        storage::Storage,
+        sets::Sets,
+    )
+
+Constraint that sets an upper bound on the amount that storage can export in a given time 
+step. This constraint is intended to help limit storage exports in scenarios where the 
+net demand and exports linking constraint is relaxed and the consumer is exposed to export 
+prices that may be greater than the energy price (e.g., NEM 3.0). Note that infeasibilities 
+may occur if storage is not built or if an insufficient amount of storage is built, as the 
+upper bound of the storage exports could interfere with the preestablished lower bound.
+"""
+function define_bes_export_upper_bound!(
+    m::JuMP.Model,
+    scenario::Scenario,
+    tariff::Tariff,
+    solar::Solar,
+    storage::Storage,
+    sets::Sets,
+)
+    # Determine whether or not the BES can export to the grid (i.e., is p_dis_exp 
+    # included?), if the binary net demand and exports linkage is relaxed, and if a 
+    # capacity expansion problem is being solved. Note that infeasibilities may occur if 
+    # storage is not built or if an insufficient amount of storage is built (as the upper 
+    # bound of the BES discharging power used for exports could interfere with its 
+    # preestablished lower bound)
+    if tariff.nem_enabled &
+       solar.enabled &
+       !storage.nonexport &
+       !scenario.binary_net_demand_and_exports_linkage &
+       (scenario.problem_type == "CEM") &
+       storage.make_investment
+        # Determine the time steps in which export prices are greater than energy prices
+        time_steps_subset =
+            filter(t -> sets.nem_prices[t] > sets.energy_prices[t], 1:(sets.num_time_steps))
+
+        if !isempty(time_steps_subset)
+            # Define the mapping between the indicator variable indices and the other 
+            # time-related parameters
+            time_mapping = Dict{Int64,Int64}(
+                t => time_steps_subset[t] for t in eachindex(time_steps_subset)
+            )
+
+            # Set the upper bound on the amount of power the BES can discharge to the grid
+            if solar.enabled
+                JuMP.@constraint(
+                    m,
+                    bes_export_upper_bound[t in eachindex(time_steps_subset)],
+                    m[:p_dis_exp][time_mapping[t]] <=
+                    m[:bes_power_capacity] -
+                    (sets.demand[time_mapping[t]] - m[:p_pv_btm][time_mapping[t]])
+                )
+            else
+                JuMP.@constraint(
+                    m,
+                    bes_export_upper_bound[t in eachindex(time_steps_subset)],
+                    m[:p_dis_exp][time_mapping[t]] <=
+                    m[:bes_power_capacity] - sets.demand[time_mapping[t]]
+                )
+            end
+        end
+    end
+end
+
+"""
     define_bes_capital_cost_objective!(
         m::JuMP.Model,
         obj::JuMP.AffExpr,
@@ -421,13 +491,23 @@ function define_bes_capital_cost_objective!(
             ),
         )
     else
+        # Establish the amortization period
+        if isnothing(scenario.amortization_period)
+            amortization_period = storage.lifespan
+        else
+            amortization_period = scenario.amortization_period
+        end
+
+        # Determine the amortized capital cost
         if isnothing(scenario.real_discount_rate)
             if isnothing(scenario.nominal_discount_rate) |
                isnothing(scenario.inflation_rate)
                 # Use a simple amortization if the necessary information is not provided
                 JuMP.add_to_expression!(
                     obj,
-                    storage.power_capital_cost * m[:bes_power_capacity] / storage.lifespan,
+                    storage.linked_cost_scaling *
+                    storage.power_capital_cost *
+                    m[:bes_power_capacity] / amortization_period,
                 )
             else
                 # Calculate the real discount rate using the nominal discount rate and 
@@ -440,9 +520,12 @@ function define_bes_capital_cost_objective!(
                 JuMP.add_to_expression!(
                     obj,
                     (
-                        (real_discount_rate * (1 + real_discount_rate)^storage.lifespan) /
-                        ((1 + real_discount_rate)^storage.lifespan - 1)
+                        (
+                            real_discount_rate *
+                            (1 + real_discount_rate)^amortization_period
+                        ) / ((1 + real_discount_rate)^amortization_period - 1)
                     ) *
+                    storage.linked_cost_scaling *
                     storage.power_capital_cost *
                     m[:bes_power_capacity],
                 )
@@ -454,9 +537,10 @@ function define_bes_capital_cost_objective!(
                 (
                     (
                         scenario.real_discount_rate *
-                        (1 + scenario.real_discount_rate)^storage.lifespan
-                    ) / ((1 + scenario.real_discount_rate)^storage.lifespan - 1)
+                        (1 + scenario.real_discount_rate)^amortization_period
+                    ) / ((1 + scenario.real_discount_rate)^amortization_period - 1)
                 ) *
+                storage.linked_cost_scaling *
                 storage.power_capital_cost *
                 m[:bes_power_capacity],
             )
@@ -467,6 +551,9 @@ function define_bes_capital_cost_objective!(
     # the determined battery energy storage system to the objective function; assume there 
     # are no variable O&M costs
     if !isnothing(storage.fixed_om_cost)
-        JuMP.add_to_expression!(obj, storage.fixed_om_cost * m[:bes_power_capacity])
+        JuMP.add_to_expression!(
+            obj,
+            storage.linked_cost_scaling * storage.fixed_om_cost * m[:bes_power_capacity],
+        )
     end
 end
