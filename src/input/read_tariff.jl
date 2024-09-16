@@ -266,7 +266,7 @@ function read_tariff(filepath::String)::Tariff
     end
 
     # Check that the time-of-use energy charge scaling period is valid
-    if !(
+    if !isnothing(tariff["tou_energy_charge_scaling_period"]) & !(
         tariff["tou_energy_charge_scaling_period"] in
         tariff_information[:, "energy_tou_labels"]
     )
