@@ -68,7 +68,7 @@ function simulate_by_month(
         # Allow the optimizer log to be saved, if desired
         if save_optimizer_log & !isnothing(output_filepath)
             if scenario.optimization_solver == "GUROBI"
-                i_str = length(string(i)) > 1 ? string(i) : "_" * string(i)
+                i_str = length(string(i)) > 1 ? string(i) : "0" * string(i)
                 JuMP.set_optimizer_attribute(
                     m,
                     "LogFile",

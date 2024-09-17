@@ -74,8 +74,8 @@ function simulate_by_day(
             # Allow the optimizer log to be saved, if desired
             if save_optimizer_log & !isnothing(output_filepath)
                 if scenario.optimization_solver == "GUROBI"
-                    i_str = length(string(i)) > 1 ? string(i) : "_" * string(i)
-                    j_str = length(string(j)) > 1 ? string(j) : "_" * string(j)
+                    i_str = length(string(i)) > 1 ? string(i) : "0" * string(i)
+                    j_str = length(string(j)) > 1 ? string(j) : "0" * string(j)
                     JuMP.set_optimizer_attribute(
                         m,
                         "LogFile",
