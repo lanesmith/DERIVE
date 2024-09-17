@@ -17,6 +17,7 @@ function read_tariff(filepath::String)::Tariff
         ),
         "energy_tou_rates" => nothing,
         "energy_tiered_rates" => nothing,
+        "energy_tiered_daily_or_monthly_usage" => nothing,
         "monthly_maximum_demand_rates" => nothing,
         "monthly_demand_tou_rates" => nothing,
         "daily_demand_tou_rates" => nothing,
@@ -202,6 +203,30 @@ function read_tariff(filepath::String)::Tariff
     # Check to make sure the energy charge is provided
     if isnothing(tariff["energy_tou_rates"])
         throw(ErrorException("No energy rates were provided. Please try again."))
+    end
+
+    # Check on the information provided for the tiered energy rate
+    if isnothing(tariff["energy_tiered_daily_or_monthly_usage"])
+        # Make sure the usage indicator is provided if tiered energy rate information is 
+        # provided
+        if !isnothing(tariff["energy_tiered_rates"])
+            throw(
+                ErrorException(
+                    "A usage indicator must be provided to consider tiered energy " *
+                    "rates. Please try again.",
+                ),
+            )
+        end
+    else
+        # Make sure the usage indicator is either daily or monthly
+        if !(tariff["energy_tiered_daily_or_monthly_usage"] in ["daily", "monthly"])
+            throw(
+                ErrorException(
+                    "The usage indicator for the tiered energy rate was not for a daily " *
+                    "or monthly baseline. Please try again.",
+                ),
+            )
+        end
     end
 
     # Check to make sure the necessary net energy metering (NEM) information is provided

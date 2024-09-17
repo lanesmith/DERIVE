@@ -38,6 +38,7 @@ Base.@kwdef struct Tariff
     months_by_season::Dict
     energy_tou_rates::Union{Dict,Nothing}
     energy_tiered_rates::Union{Dict,Nothing}
+    energy_tiered_daily_or_monthly_usage::Union{String,Nothing}
     monthly_maximum_demand_rates::Union{Dict,Nothing}
     monthly_demand_tou_rates::Union{Dict,Nothing}
     daily_demand_tou_rates::Union{Dict,Nothing}
@@ -194,5 +195,5 @@ Base.@kwdef struct Sets
     nem_prices::Union{Vector{Float64},Nothing}
     bes_initial_soc::Union{Float64,Nothing}
     num_time_steps::Int64
-    num_demand_charge_periods::Int64
+    num_demand_charge_periods::Union{Int64,Nothing}
 end

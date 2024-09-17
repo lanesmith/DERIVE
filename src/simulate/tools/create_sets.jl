@@ -162,12 +162,44 @@ function create_sets(
     if !isnothing(tariff.energy_tiered_rates)
         # Access the month(s) of the tiered energy rates that are needed
         sets["tiered_energy_rates"] = Dict{Int64,Any}()
-        tier_number = 1
         for m = Dates.month(start_index):Dates.month(end_index)
-            for k in tariff.energy_tiered_rates[m]
-                sets["tiered_energy_rates"][tier_number] = tariff.energy_tiered_rates[m][k]
-                sets["tiered_energy_rates"][tier_number]["month"] = m
-                tier_number += 1
+            for tier in keys(tariff.energy_tiered_rates[m])
+                sets["tiered_energy_rates"][tier] = Dict{String,Any}()
+                for k in keys(tariff.energy_tiered_rates[m][tier])
+                    if k == "bounds"
+                        if scenario.optimization_horizon == "DAY"
+                            if tariff.energy_tiered_daily_or_monthly_usage == "daily"
+                                sets["tiered_energy_rates"][tier][k] =
+                                    tariff.energy_tiered_rates[m][tier][k]
+                            elseif tariff.energy_tiered_daily_or_monthly_usage == "monthly"
+                                sets["tiered_energy_rates"][tier][k] =
+                                    tariff.energy_tiered_rates[m][tier][k] /
+                                    Dates.daysinmonth(scenario.year, m)
+                            end
+                        elseif scenario.optimization_horizon == "MONTH"
+                            if tariff.energy_tiered_daily_or_monthly_usage == "daily"
+                                sets["tiered_energy_rates"][tier][k] =
+                                    Dates.daysinmonth(scenario.year, m) *
+                                    tariff.energy_tiered_rates[m][tier][k]
+                            elseif tariff.energy_tiered_daily_or_monthly_usage == "monthly"
+                                sets["tiered_energy_rates"][tier][k] =
+                                    tariff.energy_tiered_rates[m][tier][k]
+                            end
+                        elseif scenario.optimization_horizon == "YEAR"
+                            throw(
+                                ErrorException(
+                                    "Considering tiered energy rates with an " *
+                                    "optimization horizon of one year is not currently " *
+                                    "supported. Please try again.",
+                                ),
+                            )
+                        end
+                    else
+                        sets["tiered_energy_rates"][tier][k] =
+                            tariff.energy_tiered_rates[m][tier][k]
+                    end
+                end
+                sets["tiered_energy_rates"][tier]["month"] = m
             end
         end
 
