@@ -4,6 +4,7 @@
         tariff::Tariff,
         solar::Solar,
         time_series_results::DataFrames.DataFrame,
+        tiered_energy_results::Union{Dict,Nothing}=nothing,
         output_filepath::Union{String,Nothing}=nothing,
     )::Dict{String,Any}
 
@@ -15,6 +16,7 @@ function calculate_electricity_bill(
     tariff::Tariff,
     solar::Solar,
     time_series_results::DataFrames.DataFrame,
+    tiered_energy_results::Union{Dict,Nothing}=nothing,
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict{String,Any}
     # Initialize the electricity bill results
@@ -156,6 +158,36 @@ function calculate_electricity_bill(
 
         # Update the cost of the total electricity bill
         bill_results["total_charge"] += bill_results["customer_charge"]
+    end
+
+    # Calculate the surcharge from the tiered energy rate, if applicable
+    if !isnothing(tiered_energy_results)
+        # Determine the number of tiers in the tiered energy rate
+        # Note: this assumes that each month has the same number of tiers
+        num_tiers = length(keys(tariff.energy_tiered_rates[1]))
+
+        # Calculate the surcharge for the different supported optimization horizons
+        if scenario.optimization_horizon == "DAY"
+            bill_results["tiered_energy_charge"] = sum(
+                sum(
+                    sum(
+                        tariff.energy_tiered_rates[m][b]["price"] *
+                        tiered_energy_results[string(m) * "-" * string(d)][b] for
+                        b = 1:num_tiers
+                    ) for d = 1:Dates.daysinmonth(scenario.year, m)
+                ) for m = 1:12
+            )
+        elseif scenario.optimization_horizon == "MONTH"
+            bill_results["tiered_energy_charge"] = sum(
+                sum(
+                    tariff.energy_tiered_rates[m][b]["price"] *
+                    tiered_energy_results[string(m)][b] for b = 1:num_tiers
+                ) for m = 1:12
+            )
+        end
+
+        # Update the cost of the total electricity bill
+        bill_results["total_charge"] += bill_results["tiered_energy_charge"]
     end
 
     # Save the electricity bill results, if desired

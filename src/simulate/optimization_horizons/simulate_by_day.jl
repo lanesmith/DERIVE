@@ -28,6 +28,13 @@ function simulate_by_day(
     # Initialize the time-series results DataFrame
     time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
 
+    # Initialize the tiered energy results Dict, if necessary
+    if !isnothing(tariff.energy_tiered_rates)
+        tiered_energy_results = Dict{String,Any}()
+    else
+        tiered_energy_results = nothing
+    end
+
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
         bes_initial_soc = storage.soc_initial
@@ -128,6 +135,11 @@ function simulate_by_day(
                 end_date,
             )
 
+            # Store the tiered energy results, if necessary
+            if !isnothing(sets.tiered_energy_rates)
+                store_tiered_energy_results!(m, tiered_energy_results, i, j)
+            end
+
             # Pass final state of charge (SOC) from this pass to the initial SOC of the next
             if storage.enabled
                 if (storage.power_capacity == 0) | (storage.duration == 0)
@@ -158,12 +170,22 @@ function simulate_by_day(
         CSV.write(joinpath(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
+    # Save the tiered energy results, if desired and if relevant
+    if !isnothing(tariff.energy_tiered_rates) & !isnothing(output_filepath)
+        CSV.write(
+            joinpath(output_filepath, "tiered_energy_results.csv"),
+            tiered_energy_results;
+            header=["month-day", "tier_consumption"],
+        )
+    end
+
     # Caluclate the electricity bill components
     electricity_bill = calculate_electricity_bill(
         scenario,
         tariff,
         solar,
         time_series_results,
+        tiered_energy_results,
         output_filepath,
     )
 
