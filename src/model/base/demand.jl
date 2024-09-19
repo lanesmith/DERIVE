@@ -8,7 +8,7 @@ different included assets, and an expression to define the total power exported,
 updated in other functions to include the contributions of different included assets.
 """
 function define_demand_variables!(m::JuMP.Model, tariff::Tariff, solar::Solar, sets::Sets)
-    # Set the maximum net demand during different periods variables
+    # Set the maximum net demand during different periods variables, if applicable
     if !isnothing(sets.demand_prices)
         JuMP.@variable(m, d_max[p in 1:(sets.num_demand_charge_periods)] >= 0)
     end
@@ -19,6 +19,11 @@ function define_demand_variables!(m::JuMP.Model, tariff::Tariff, solar::Solar, s
     # Create expression for total exports; update based on program/resource participation
     if tariff.nem_enabled & solar.enabled
         JuMP.@expression(m, p_exports[t in 1:(sets.num_time_steps)], JuMP.AffExpr())
+    end
+
+    # Set the net consumption during different tiers variables, if applicable
+    if !isnothing(sets.tiered_energy_rates)
+        JuMP.@variable(m, e_tier[n in 1:(sets.num_tiered_energy_rates_tiers)] >= 0)
     end
 end
 

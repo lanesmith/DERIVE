@@ -1,15 +1,4 @@
 """
-    define_tiered_energy_rates_variables!(m::JuMP.Model, sets::Sets)
-
-Defines the variables that correspond to the energy consumption over the different tiers 
-specified by the utility tariff. These variables are constrained to be nonnegative.
-"""
-function define_tiered_energy_rates_variables!(m::JuMP.Model, sets::Sets)
-    # Set the variables associated with the energy tiered rates
-    JuMP.@variable(m, e_tier[n in 1:(sets.num_tiered_energy_rates_tiers)] >= 0)
-end
-
-"""
     define_tiered_energy_rates_tier_constraints!(
         m::JuMP.Model,
         scenario::Scenario,
@@ -28,32 +17,30 @@ function define_tiered_energy_rates_tier_constraints!(
     scenario::Scenario,
     sets::Sets,
 )
-    # Set the upper bounds for the tiers
+    # Determine the number of net consumption tier quantities that require an upper bound.
+    # If the last tier has an upper bound of Inf, that net consumption tier quantity does 
+    # not need an upper bound
+    num_tier_ub_constraints = sets.num_tiered_energy_rates_tiers
+    if Inf in sets.tiered_energy_rates[sets.num_tiered_energy_rates_tiers]["bounds"]
+        num_tier_ub_constraints -= 1
+    end
+
+    # Set the upper bounds, as necessary, for each net consumption tier quantity
     JuMP.@constraint(
         m,
-        tiered_energy_rates_tiers_upper_bounds[n in 1:(sets.num_tiered_energy_rates_tiers)],
+        tiered_energy_rates_tiers_upper_bounds[n in 1:num_tier_ub_constraints],
         m[:e_tier][n] <= (
             sets.tiered_energy_rates[n]["bounds"][2] -
             sets.tiered_energy_rates[n]["bounds"][1]
         )
     )
 
-    # Ensure that the sum of the tiers is equal to the net demand
+    # Ensure that the sum of the net consumption tier quantities equals the sum of the net 
+    # demand
     JuMP.@constraint(
         m,
-        tiered_energy_rates_tiers_equality[μ in 1:(Dates.month(
-            sets.end_date,
-        ) - Dates.month(sets.start_date) + 1)],
-        sum(
-            (sets.tiered_energy_rates[n]["month"] == (μ + Dates.month(start_date) - 1)) ?
-            m[:e_tier][n] : 0 for n = 1:(sets.num_tiered_energy_rates_tiers)
-        ) ==
-        (scenario.interval_length / 60) * sum(
-            m[:d_net][t] for t =
-                ((Dates.dayofyear(sets.start_date) - 1) * 24 + 1):(Dates.dayofyear(
-                    sets.end_date,
-                ) * 24)
-        )
+        tiered_energy_rates_tiers_equality,
+        sum(m[:e_tier]) == (scenario.interval_length / 60) * sum(m[:d_net])
     )
 end
 
@@ -61,6 +48,7 @@ end
     define_tiered_energy_rates_objective!(
         m::JuMP.Model,
         obj::JuMP.AffExpr,
+        scenario::Scenario,
         sets::Sets,
     )
 
@@ -68,11 +56,16 @@ Adds a charge to the objective function for the tiered energy rates. This additi
 is the sum of the products of the total energy consumption in a tier and the price of 
 consuming energy while in that tier.
 """
-function define_tiered_energy_rates_objective!(m::JuMP.Model, obj::JuMP.AffExpr, sets::Sets)
+function define_tiered_energy_rates_objective!(
+    m::JuMP.Model,
+    obj::JuMP.AffExpr,
+    scenario::Scenario,
+    sets::Sets,
+)
     # Add the tiered energy rate costs to the objective function
     JuMP.add_to_expression!(
         obj,
-        sum(
+        (scenario.interval_length / 60) * sum(
             m[:e_tier][n] * sets.tiered_energy_rates[n]["price"] for
             n = 1:(sets.num_tiered_energy_rates_tiers)
         ),
