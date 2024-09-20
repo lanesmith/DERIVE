@@ -115,6 +115,7 @@ function simulate_by_year(
         tariff,
         solar,
         time_series_results,
+        nothing,
         output_filepath,
     )
 
