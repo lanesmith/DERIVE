@@ -168,20 +168,20 @@ function create_sets(
                 for k in keys(tariff.energy_tiered_rates[m][tier])
                     if k == "bounds"
                         if scenario.optimization_horizon == "DAY"
-                            if tariff.energy_tiered_daily_or_monthly_usage == "daily"
+                            if tariff.energy_tiered_baseline_type == "daily"
                                 sets["tiered_energy_rates"][tier][k] =
                                     tariff.energy_tiered_rates[m][tier][k]
-                            elseif tariff.energy_tiered_daily_or_monthly_usage == "monthly"
+                            elseif tariff.energy_tiered_baseline_type == "monthly"
                                 sets["tiered_energy_rates"][tier][k] =
                                     tariff.energy_tiered_rates[m][tier][k] /
                                     Dates.daysinmonth(scenario.year, m)
                             end
                         elseif scenario.optimization_horizon == "MONTH"
-                            if tariff.energy_tiered_daily_or_monthly_usage == "daily"
+                            if tariff.energy_tiered_baseline_type == "daily"
                                 sets["tiered_energy_rates"][tier][k] =
                                     Dates.daysinmonth(scenario.year, m) *
                                     tariff.energy_tiered_rates[m][tier][k]
-                            elseif tariff.energy_tiered_daily_or_monthly_usage == "monthly"
+                            elseif tariff.energy_tiered_baseline_type == "monthly"
                                 sets["tiered_energy_rates"][tier][k] =
                                     tariff.energy_tiered_rates[m][tier][k]
                             end

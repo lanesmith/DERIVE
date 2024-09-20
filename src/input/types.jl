@@ -38,7 +38,7 @@ Base.@kwdef struct Tariff
     months_by_season::Dict
     energy_tou_rates::Union{Dict,Nothing}
     energy_tiered_rates::Union{Dict,Nothing}
-    energy_tiered_daily_or_monthly_usage::Union{String,Nothing}
+    energy_tiered_baseline_type::Union{String,Nothing}
     monthly_maximum_demand_rates::Union{Dict,Nothing}
     monthly_demand_tou_rates::Union{Dict,Nothing}
     daily_demand_tou_rates::Union{Dict,Nothing}

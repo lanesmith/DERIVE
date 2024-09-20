@@ -17,7 +17,7 @@ function read_tariff(filepath::String)::Tariff
         ),
         "energy_tou_rates" => nothing,
         "energy_tiered_rates" => nothing,
-        "energy_tiered_daily_or_monthly_usage" => nothing,
+        "energy_tiered_baseline_type" => nothing,
         "monthly_maximum_demand_rates" => nothing,
         "monthly_demand_tou_rates" => nothing,
         "daily_demand_tou_rates" => nothing,
@@ -199,6 +199,10 @@ function read_tariff(filepath::String)::Tariff
             end
         end
     end
+    if tariff_information[1, "energy_tiered_daily_or_monthly_usage"] != "missing"
+        tariff["energy_tiered_baseline_type"] =
+            tariff_information[1, "energy_tiered_daily_or_monthly_usage"]
+    end
 
     # Check to make sure the energy charge is provided
     if isnothing(tariff["energy_tou_rates"])
@@ -206,7 +210,7 @@ function read_tariff(filepath::String)::Tariff
     end
 
     # Check on the information provided for the tiered energy rate
-    if isnothing(tariff["energy_tiered_daily_or_monthly_usage"])
+    if isnothing(tariff["energy_tiered_baseline_type"])
         # Make sure the usage indicator is provided if tiered energy rate information is 
         # provided
         if !isnothing(tariff["energy_tiered_rates"])
@@ -219,7 +223,7 @@ function read_tariff(filepath::String)::Tariff
         end
     else
         # Make sure the usage indicator is either daily or monthly
-        if !(tariff["energy_tiered_daily_or_monthly_usage"] in ["daily", "monthly"])
+        if !(tariff["energy_tiered_baseline_type"] in ["daily", "monthly"])
             throw(
                 ErrorException(
                     "The usage indicator for the tiered energy rate was not for a daily " *
