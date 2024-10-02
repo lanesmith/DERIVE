@@ -194,14 +194,22 @@ function calculate_electricity_bill(
             if tariff.nem_version == 1
                 bill_results[13, i] = min(
                     sum(bill_results[m, i] for m = 1:12),
-                    sum(bill_results[m, "energy_charge"] for m = 1:12),
+                    (
+                        sum(bill_results[m, "energy_charge"] for m = 1:12) + (
+                            isnothing(tiered_energy_results) ? 0.0 :
+                            sum(bill_results[m, "tiered_energy_charge"] for m = 1:12)
+                        )
+                    ),
                 )
             elseif tariff.nem_version == 2
                 bill_results[13, i] = min(
                     sum(bill_results[m, i] for m = 1:12),
                     (
                         sum(bill_results[m, "energy_charge"] for m = 1:12) -
-                        sum(bill_results[m, "non_bypassable_charge"] for m = 1:12)
+                        sum(bill_results[m, "non_bypassable_charge"] for m = 1:12) + (
+                            isnothing(tiered_energy_results) ? 0.0 :
+                            sum(bill_results[m, "tiered_energy_charge"] for m = 1:12)
+                        )
                     ),
                 )
             elseif tariff.nem_version == 3
@@ -209,7 +217,10 @@ function calculate_electricity_bill(
                     sum(bill_results[m, i] for m = 1:12),
                     (
                         sum(bill_results[m, "energy_charge"] for m = 1:12) -
-                        sum(bill_results[m, "non_bypassable_charge"] for m = 1:12)
+                        sum(bill_results[m, "non_bypassable_charge"] for m = 1:12) + (
+                            isnothing(tiered_energy_results) ? 0.0 :
+                            sum(bill_results[m, "tiered_energy_charge"] for m = 1:12)
+                        )
                     ),
                 )
             end
