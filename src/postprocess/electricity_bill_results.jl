@@ -142,14 +142,28 @@ function calculate_electricity_bill(
                             tariff.nem_prices[t, "rates"] for t in monthly_time_steps
                         )
                 elseif tariff.nem_version == 2
-                    bill_results[m, i] = sum(
-                        time_series_results[t, "net_exports"] * (
+                    if scenario.optimization_horizon == "YEAR"
+                        bill_results[m, i] =
                             tariff.all_charge_scaling *
                             tariff.energy_charge_scaling *
-                            tou_energy_charge_scaling[t] *
-                            (tariff.nem_prices[t, "rates"] + tariff.non_bypassable_charge)
-                        ) for t in monthly_time_steps
-                    )
+                            sum(
+                                time_series_results[t, "net_exports"] *
+                                tou_energy_charge_scaling[t] *
+                                tariff.nem_prices[t, "rates"] for t in monthly_time_steps
+                            )
+                    else
+                        bill_results[m, i] = sum(
+                            time_series_results[t, "net_exports"] * (
+                                tariff.all_charge_scaling *
+                                tariff.energy_charge_scaling *
+                                tou_energy_charge_scaling[t] *
+                                (
+                                    tariff.nem_prices[t, "rates"] +
+                                    tariff.non_bypassable_charge
+                                )
+                            ) for t in monthly_time_steps
+                        )
+                    end
                 elseif tariff.nem_version == 3
                     if scenario.optimization_horizon == "YEAR"
                         bill_results[m, i] = sum(

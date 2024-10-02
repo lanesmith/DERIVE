@@ -443,9 +443,13 @@ function create_nem_price_profile(
         # Under NEM 1.0, the sell rate is the same as the energy rate
         profile = deepcopy(energy_price_profile)
     elseif tariff.nem_version == 2
-        # Under NEM 2.0, the sell rate is the energy rate minus the non-bypassable charge
+        # Under NEM 2.0, the effective sell rate is the energy rate minus the non-bypassable 
+        # charge. This is done to account for the presence of non-bypassable charges and the 
+        # incentive for consumers to self-consume if possible
         profile = deepcopy(energy_price_profile)
-        profile[!, "rates"] .-= tariff.non_bypassable_charge
+        if scenario.optimization_horizon != "YEAR"
+            profile[!, "rates"] .-= tariff.non_bypassable_charge
+        end
     elseif tariff.nem_version == 3
         # Under NEM 3.0, the sell rate is the value determined by avoided cost calculators 
         # and minus the non-bypassable charge

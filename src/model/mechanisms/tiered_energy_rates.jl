@@ -45,27 +45,17 @@ function define_tiered_energy_rates_tier_constraints!(
 end
 
 """
-    define_tiered_energy_rates_objective!(
-        m::JuMP.Model,
-        obj::JuMP.AffExpr,
-        scenario::Scenario,
-        sets::Sets,
-    )
+    define_tiered_energy_rates_objective!(m::JuMP.Model, obj::JuMP.AffExpr, sets::Sets)
 
 Adds a charge to the objective function for the tiered energy rates. This additional charge 
 is the sum of the products of the total energy consumption in a tier and the price of 
 consuming energy while in that tier.
 """
-function define_tiered_energy_rates_objective!(
-    m::JuMP.Model,
-    obj::JuMP.AffExpr,
-    scenario::Scenario,
-    sets::Sets,
-)
+function define_tiered_energy_rates_objective!(m::JuMP.Model, obj::JuMP.AffExpr, sets::Sets)
     # Add the tiered energy rate costs to the objective function
     JuMP.add_to_expression!(
         obj,
-        (scenario.interval_length / 60) * sum(
+        sum(
             m[:e_tier][n] * sets.tiered_energy_rates[n]["price"] for
             n = 1:(sets.num_tiered_energy_rates_tiers)
         ),

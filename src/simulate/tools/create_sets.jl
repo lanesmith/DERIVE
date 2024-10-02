@@ -350,18 +350,31 @@ function create_sets(
                     "rates",
                 ]
         elseif tariff.nem_version == 2
-            sets["nem_prices"] =
-                tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
-                tou_energy_charge_scaling .* (
-                    filter(
+            if scenario.optimization_horizon == "YEAR"
+                sets["nem_prices"] =
+                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                    tou_energy_charge_scaling .* filter(
                         row -> row["timestamp"] in
                         start_index:Dates.Minute(scenario.interval_length):end_index,
                         tariff.nem_prices,
                     )[
                         !,
                         "rates",
-                    ] .+ tariff.non_bypassable_charge
-                ) .- tariff.non_bypassable_charge
+                    ]
+            else
+                sets["nem_prices"] =
+                    tariff.all_charge_scaling .* tariff.energy_charge_scaling .*
+                    tou_energy_charge_scaling .* (
+                        filter(
+                            row -> row["timestamp"] in
+                            start_index:Dates.Minute(scenario.interval_length):end_index,
+                            tariff.nem_prices,
+                        )[
+                            !,
+                            "rates",
+                        ] .+ tariff.non_bypassable_charge
+                    ) .- tariff.non_bypassable_charge
+            end
         else
             sets["nem_prices"] = filter(
                 row -> row["timestamp"] in
