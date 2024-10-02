@@ -25,6 +25,7 @@ function read_tariff(filepath::String)::Tariff
         "nem_version" => 2,
         "non_bypassable_charge" => nothing,
         "average_nem_3_over_years" => false,
+        "nem_3_year" => nothing,
         "customer_charge" => Dict{String,Float64}("daily" => 0.0, "monthly" => 0.0),
         "energy_prices" => nothing,
         "demand_prices" => nothing,

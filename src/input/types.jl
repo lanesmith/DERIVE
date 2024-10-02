@@ -46,6 +46,7 @@ Base.@kwdef struct Tariff
     nem_version::Int64
     non_bypassable_charge::Union{Float64,Nothing}
     average_nem_3_over_years::Bool
+    nem_3_year::Union{Int64,Nothing}
     customer_charge::Dict
     energy_prices::Union{DataFrames.DataFrame,Nothing}
     demand_prices::Union{Dict,Nothing}

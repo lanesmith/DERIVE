@@ -489,17 +489,24 @@ function calculate_nem_3_price_profile(
                 ),
             )
         else
+            start_year = scenario.year
             end_year = scenario.year + scenario.amortization_period - 1
         end
     else
-        end_year = scenario.year
+        if isnothing(tariff.nem_3_year)
+            start_year = scenario.year
+            end_year = scenario.year
+        else
+            start_year = tariff.nem_3_year
+            end_year = tariff.nem_3_year
+        end
     end
 
     # Initialise the DataFrame that will collect the annual profile(s) of ACC prices
     acc_profile = DataFrames.DataFrame("timestamp" => [], "rates" => [])
 
     # Iterate through each year under consideration
-    for y in range(scenario.year, end_year)
+    for y in range(start_year, end_year)
         # Initialize variables to hold avoided cost calculator (ACC) values and the number 
         # of climate zones. Uses a number of time steps consistent with that used in the 
         # ACC data
