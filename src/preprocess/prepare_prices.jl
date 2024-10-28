@@ -577,24 +577,26 @@ function calculate_nem_3_price_profile(
         cz_counter = 0
 
         # Add the ACC component prices together
-        for i in readdir(joinpath(filepath, "nem_3_data"))
+        for i in readdir(joinpath(filepath, "nem_3_data", tariff.utility_name))
             if occursin("CZ", i)
                 # Read in the ACC distribution capacity price profile
-                acc_profile_cz .+=
-                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                        !,
-                        string(y),
-                    ]
+                acc_profile_cz .+= DataFrames.DataFrame(
+                    CSV.File(joinpath(filepath, "nem_3_data", tariff.utility_name, i)),
+                )[
+                    !,
+                    string(y),
+                ]
 
                 # Increment the number of climate zones
                 cz_counter += 1
             else
                 # Read in the ACC component price profile
-                acc_profile_one_year .+=
-                    DataFrames.DataFrame(CSV.File(joinpath(filepath, "nem_3_data", i)))[
-                        !,
-                        string(y),
-                    ]
+                acc_profile_one_year .+= DataFrames.DataFrame(
+                    CSV.File(joinpath(filepath, "nem_3_data", tariff.utility_name, i)),
+                )[
+                    !,
+                    string(y),
+                ]
             end
         end
 
