@@ -37,6 +37,7 @@ Base.@kwdef struct Tariff
     seasonal_month_split::Bool
     months_by_season::Dict
     energy_tou_rates::Union{Dict,Nothing}
+    energy_tou_weekends_holidays_rates::Union{Dict,Nothing}
     energy_tiered_rates::Union{Dict,Nothing}
     energy_tiered_baseline_type::Union{String,Nothing}
     monthly_maximum_demand_rates::Union{Dict,Nothing}

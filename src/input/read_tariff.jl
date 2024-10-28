@@ -16,6 +16,7 @@ function read_tariff(filepath::String)::Tariff
             "winter" => [1, 2, 3, 4, 5, 10, 11, 12],
         ),
         "energy_tou_rates" => nothing,
+        "energy_tou_weekends_holidays_rates" => nothing,
         "energy_tiered_rates" => nothing,
         "energy_tiered_baseline_type" => nothing,
         "monthly_maximum_demand_rates" => nothing,

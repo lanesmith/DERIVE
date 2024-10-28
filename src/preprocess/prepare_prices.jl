@@ -46,22 +46,48 @@ function create_energy_rate_profile(
 
             # Update the profile if there is a distinction between weekdays and weekends
             if tariff.weekday_weekend_split
-                profile[!, "rates"] .=
-                    ifelse.(
-                        identify_weekends.(profile.timestamp, m),
-                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
-                        profile[!, "rates"],
-                    )
+                if isnothing(tariff.energy_tou_weekends_holidays_rates)
+                    # If alternate rates are not provided for weekends and holidays, assume 
+                    # that the presumed off-peak price is in effect during all hours on 
+                    # weekends
+                    profile[!, "rates"] .=
+                        ifelse.(
+                            identify_weekends.(profile.timestamp, m),
+                            tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
+                            profile[!, "rates"],
+                        )
+                else
+                    profile[!, "rates"] .=
+                        ifelse.(
+                            identify_weekends.(profile.timestamp, m) .&
+                            (Dates.hour.(profile.timestamp) .== h),
+                            tariff.energy_tou_weekends_holidays_rates[seasons_by_month[m]][h]["rate"],
+                            profile[!, "rates"],
+                        )
+                end
             end
 
             # Update the profile if there is a distinction between holidays and non-holidays
             if tariff.holiday_split
-                profile[!, "rates"] .=
-                    ifelse.(
-                        identify_holidays.(profile.timestamp, m),
-                        tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
-                        profile[!, "rates"],
-                    )
+                if isnothing(tariff.energy_tou_weekends_holidays_rates)
+                    # If alternate rates are not provided for weekends and holidays, assume 
+                    # that the presumed off-peak price is in effect during all hours on 
+                    # holidays
+                    profile[!, "rates"] .=
+                        ifelse.(
+                            identify_holidays.(profile.timestamp, m),
+                            tariff.energy_tou_rates[seasons_by_month[m]][0]["rate"],
+                            profile[!, "rates"],
+                        )
+                else
+                    profile[!, "rates"] .=
+                        ifelse.(
+                            identify_holidays.(profile.timestamp, m) .&
+                            (Dates.hour.(profile.timestamp) .== h),
+                            tariff.energy_tou_weekends_holidays_rates[seasons_by_month[m]][h]["rate"],
+                            profile[!, "rates"],
+                        )
+                end
             end
         end
     end
@@ -162,29 +188,61 @@ function create_tou_energy_charge_scaling_indicator_profile(
 
                 # Update the profile if there is a distinction between weekdays and weekends
                 if tariff.weekday_weekend_split
-                    profile[!, "indicators"] .=
-                        ifelse.(
-                            identify_weekends.(profile.timestamp, m),
-                            (
-                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
-                                tariff.tou_energy_charge_scaling_period
-                            ) ? 1.0 : 0.0,
-                            profile[!, "indicators"],
-                        )
+                    if isnothing(tariff.energy_tou_weekends_holidays_rates)
+                        # If alternate rates are not provided for weekends and holidays, 
+                        # assume that the presumed off-peak price is in effect during all 
+                        # hours on weekends
+                        profile[!, "indicators"] .=
+                            ifelse.(
+                                identify_weekends.(profile.timestamp, m),
+                                (
+                                    tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                    tariff.tou_energy_charge_scaling_period
+                                ) ? 1.0 : 0.0,
+                                profile[!, "indicators"],
+                            )
+                    else
+                        profile[!, "indicators"] .=
+                            ifelse.(
+                                identify_weekends.(profile.timestamp, m) .&
+                                (Dates.hour.(profile.timestamp) .== h),
+                                (
+                                    tariff.energy_tou_weekends_holidays_rates[seasons_by_month[m]][h]["label"] ==
+                                    tariff.tou_energy_charge_scaling_period
+                                ) ? 1.0 : 0.0,
+                                profile[!, "indicators"],
+                            )
+                    end
                 end
 
                 # Update the profile if there is a distinction between holidays and 
                 # non-holidays
                 if tariff.holiday_split
-                    profile[!, "indicators"] .=
-                        ifelse.(
-                            identify_holidays.(profile.timestamp, m),
-                            (
-                                tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
-                                tariff.tou_energy_charge_scaling_period
-                            ) ? 1.0 : 0.0,
-                            profile[!, "indicators"],
-                        )
+                    if isnothing(tariff.energy_tou_weekends_holidays_rates)
+                        # If alternate rates are not provided for weekends and holidays, 
+                        # assume that the presumed off-peak price is in effect during all 
+                        # hours on holidays
+                        profile[!, "indicators"] .=
+                            ifelse.(
+                                identify_holidays.(profile.timestamp, m),
+                                (
+                                    tariff.energy_tou_rates[seasons_by_month[m]][0]["label"] ==
+                                    tariff.tou_energy_charge_scaling_period
+                                ) ? 1.0 : 0.0,
+                                profile[!, "indicators"],
+                            )
+                    else
+                        profile[!, "indicators"] .=
+                            ifelse.(
+                                identify_holidays.(profile.timestamp, m) .&
+                                (Dates.hour.(profile.timestamp) .== h),
+                                (
+                                    tariff.energy_tou_weekends_holidays_rates[seasons_by_month[m]][h]["label"] ==
+                                    tariff.tou_energy_charge_scaling_period
+                                ) ? 1.0 : 0.0,
+                                profile[!, "indicators"],
+                            )
+                    end
                 end
             end
         end
