@@ -9,7 +9,7 @@
         storage::Storage;
         output_filepath::Union{String,Nothing}=nothing,
         save_optimizer_log::Bool=false,
-    )::Tuple{DataFrames.DataFrame,Dict}
+    )::Tuple{DataFrames.DataFrame,DataFrames.DataFrame}
 
 Simulate the optimization problem using optimization horizons of one month. Store the 
 necessary results.
@@ -24,9 +24,16 @@ function simulate_by_month(
     storage::Storage;
     output_filepath::Union{String,Nothing}=nothing,
     save_optimizer_log::Bool=false,
-)::Tuple{DataFrames.DataFrame,Dict}
+)::Tuple{DataFrames.DataFrame,DataFrames.DataFrame}
     # Initialize the time-series results DataFrame
     time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
+
+    # Initialize the tiered energy results Dict, if necessary
+    if !isnothing(tariff.energy_tiered_rates)
+        tiered_energy_results = Dict{String,Any}()
+    else
+        tiered_energy_results = nothing
+    end
 
     # Set initial state of charge for the battery energy storage (BES) system, if enabled
     if storage.enabled
@@ -68,7 +75,7 @@ function simulate_by_month(
         # Allow the optimizer log to be saved, if desired
         if save_optimizer_log & !isnothing(output_filepath)
             if scenario.optimization_solver == "GUROBI"
-                i_str = length(string(i)) > 1 ? string(i) : "_" * string(i)
+                i_str = length(string(i)) > 1 ? string(i) : "0" * string(i)
                 JuMP.set_optimizer_attribute(
                     m,
                     "LogFile",
@@ -118,6 +125,11 @@ function simulate_by_month(
             end_date,
         )
 
+        # Store the tiered energy results, if necessary
+        if !isnothing(sets.tiered_energy_rates)
+            store_tiered_energy_results!(m, tiered_energy_results, i)
+        end
+
         # Pass final state of charge from this pass to initial state of charge of the next
         if storage.enabled
             if (storage.power_capacity == 0) | (storage.duration == 0)
@@ -136,12 +148,22 @@ function simulate_by_month(
         CSV.write(joinpath(output_filepath, "time_series_results.csv"), time_series_results)
     end
 
+    # Save the tiered energy results, if desired and if relevant
+    if !isnothing(tariff.energy_tiered_rates) & !isnothing(output_filepath)
+        CSV.write(
+            joinpath(output_filepath, "tiered_energy_results.csv"),
+            tiered_energy_results;
+            header=["month", "tier_consumption"],
+        )
+    end
+
     # Caluclate the electricity bill components
     electricity_bill = calculate_electricity_bill(
         scenario,
         tariff,
         solar,
         time_series_results,
+        tiered_energy_results,
         output_filepath,
     )
 

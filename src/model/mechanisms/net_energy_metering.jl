@@ -149,6 +149,7 @@ end
 """
     define_annual_net_energy_metering_revenue_cap!(
         m::JuMP.Model,
+        scenario::Scenario,
         tariff::Tariff,
         sets::Sets,
     )
@@ -167,15 +168,56 @@ behind-the-meter needs rather than to earn additional credits at such a low pric
 """
 function define_annual_net_energy_metering_revenue_cap!(
     m::JuMP.Model,
+    scenario::Scenario,
     tariff::Tariff,
     sets::Sets,
 )
     # Define the constraint that caps the amount of annual revenue earned through net 
     # energy metering
-    JuMP.@constraint(
-        m,
-        annual_nem_revenue_cap,
-        sum(m[:d_net] .* sets.energy_prices) - sum(m[:p_exports] .* sets.nem_prices) >=
-        tariff.non_bypassable_charge * sum(m[:d_net])
-    )
+    if isnothing(tariff.energy_tiered_rates)
+        if tariff.nem_version == 1
+            JuMP.@constraint(
+                m,
+                annual_nem_revenue_cap,
+                sum(m[:d_net] .* sets.energy_prices) -
+                sum(m[:p_exports] .* sets.nem_prices) >= 0.0
+            )
+        elseif tariff.nem_version in [2, 3]
+            JuMP.@constraint(
+                m,
+                annual_nem_revenue_cap,
+                sum(m[:d_net] .* sets.energy_prices) -
+                sum(m[:p_exports] .* sets.nem_prices) >=
+                tariff.non_bypassable_charge * sum(m[:d_net])
+            )
+        end
+    else
+        if tariff.nem_version == 1
+            JuMP.@constraint(
+                m,
+                annual_nem_revenue_cap,
+                (scenario.interval_length / 60) * sum(m[:d_net] .* sets.energy_prices) +
+                sum(
+                    m[:e_tier][n] * sets.tiered_energy_rates[n]["price"] for
+                    n = 1:(sets.num_tiered_energy_rates_tiers)
+                ) -
+                (scenario.interval_length / 60) * sum(m[:p_exports] .* sets.nem_prices) >=
+                0.0
+            )
+        elseif tariff.nem_version in [2, 3]
+            JuMP.@constraint(
+                m,
+                annual_nem_revenue_cap,
+                (scenario.interval_length / 60) * sum(m[:d_net] .* sets.energy_prices) +
+                sum(
+                    m[:e_tier][n] * sets.tiered_energy_rates[n]["price"] for
+                    n = 1:(sets.num_tiered_energy_rates_tiers)
+                ) -
+                (scenario.interval_length / 60) * sum(m[:p_exports] .* sets.nem_prices) >=
+                (scenario.interval_length / 60) *
+                tariff.non_bypassable_charge *
+                sum(m[:d_net])
+            )
+        end
+    end
 end

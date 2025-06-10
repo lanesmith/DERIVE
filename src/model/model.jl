@@ -42,6 +42,11 @@ function define_objective_function!(
         define_net_energy_metering_revenue_objective!(m, obj, scenario, sets)
     end
 
+    # Add in surcharge from tiered energy rate, if applicable
+    if !isnothing(sets.tiered_energy_rates)
+        define_tiered_energy_rates_objective!(m, obj, sets)
+    end
+
     # Add in variable cost associated with the simple shiftable demand model, if applicable
     if demand.simple_shift_enabled
         define_shiftable_demand_variable_cost_objective!(m, obj, scenario, demand)
@@ -164,11 +169,8 @@ function build_optimization_model(
 
     # Define the constraint that places a cap on the annual net energy metering revenue 
     # that the consumer can collect, if applicable
-    if (scenario.optimization_horizon == "YEAR") &
-       tariff.nem_enabled &
-       (tariff.nem_version in [2, 3]) &
-       solar.enabled
-        define_annual_net_energy_metering_revenue_cap!(m, tariff, sets)
+    if (scenario.optimization_horizon == "YEAR") & tariff.nem_enabled & solar.enabled
+        define_annual_net_energy_metering_revenue_cap!(m, scenario, tariff, sets)
     end
 
     # Define the linkage between net demand and exports, if enabled and applicable
@@ -198,6 +200,11 @@ function build_optimization_model(
 
         # Include the constraint
         define_pv_capacity_and_exports_linkage!(m, solar, storage, sets)
+    end
+
+    # Define the constraints associated with the tiered energy rate, if applicable
+    if !isnothing(sets.tiered_energy_rates)
+        define_tiered_energy_rates_tier_constraints!(m, scenario, sets)
     end
 
     # Define the objective function of the optimization model

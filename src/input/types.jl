@@ -37,7 +37,9 @@ Base.@kwdef struct Tariff
     seasonal_month_split::Bool
     months_by_season::Dict
     energy_tou_rates::Union{Dict,Nothing}
+    energy_tou_weekends_holidays_rates::Union{Dict,Nothing}
     energy_tiered_rates::Union{Dict,Nothing}
+    energy_tiered_baseline_type::Union{String,Nothing}
     monthly_maximum_demand_rates::Union{Dict,Nothing}
     monthly_demand_tou_rates::Union{Dict,Nothing}
     daily_demand_tou_rates::Union{Dict,Nothing}
@@ -45,6 +47,7 @@ Base.@kwdef struct Tariff
     nem_version::Int64
     non_bypassable_charge::Union{Float64,Nothing}
     average_nem_3_over_years::Bool
+    nem_3_year::Union{Int64,Nothing}
     customer_charge::Dict
     energy_prices::Union{DataFrames.DataFrame,Nothing}
     demand_prices::Union{Dict,Nothing}
@@ -194,5 +197,5 @@ Base.@kwdef struct Sets
     nem_prices::Union{Vector{Float64},Nothing}
     bes_initial_soc::Union{Float64,Nothing}
     num_time_steps::Int64
-    num_demand_charge_periods::Int64
+    num_demand_charge_periods::Union{Int64,Nothing}
 end

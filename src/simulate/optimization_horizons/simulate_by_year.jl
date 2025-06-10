@@ -9,7 +9,7 @@
         storage::Storage;
         output_filepath::Union{String,Nothing}=nothing,
         save_optimizer_log::Bool=false,
-    )::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
+    )::Tuple{DataFrames.DataFrame,DataFrames.DataFrame,Union{Dict,Nothing}}
 
 Simulate the optimization problem using optimization horizons of one year. Store the 
 necessary results.
@@ -24,7 +24,7 @@ function simulate_by_year(
     storage::Storage;
     output_filepath::Union{String,Nothing}=nothing,
     save_optimizer_log::Bool=false,
-)::Tuple{DataFrames.DataFrame,Dict,Union{Dict,Nothing}}
+)::Tuple{DataFrames.DataFrame,DataFrames.DataFrame,Union{Dict,Nothing}}
     # Initialize the time-series results DataFrame
     time_series_results = initialize_time_series_results(tariff, demand, solar, storage)
 
@@ -115,6 +115,7 @@ function simulate_by_year(
         tariff,
         solar,
         time_series_results,
+        nothing,
         output_filepath,
     )
 

@@ -68,16 +68,22 @@ function read_solar(filepath::String)::Solar
 
     # Try loading the capacity factor profile if solar is enabled
     if solar["enabled"]
-        capacity_factor_file_path = DataFrames.DataFrame(
+        capacity_factor_file_name = DataFrames.DataFrame(
             CSV.File(joinpath(filepath, "solar_parameters.csv"); transpose=true),
         )[
             1,
-            "capacity_factor_file_path",
+            "capacity_factor_file_name",
         ]
-        if !ismissing(capacity_factor_file_path)
+        if !ismissing(capacity_factor_file_name)
             try
                 solar["capacity_factor_profile"] = DataFrames.DataFrame(
-                    CSV.File(joinpath(filepath, capacity_factor_file_path)),
+                    CSV.File(
+                        joinpath(
+                            filepath,
+                            "solar_data",
+                            capacity_factor_file_name * ".csv",
+                        ),
+                    ),
                 )
             catch e
                 println(

@@ -463,3 +463,207 @@ function lambertw(z::Union{Float64,Int64}, tol::Float64=1e-6)::Float64
         ),
     )
 end
+
+"""
+    adjust_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
+
+Adjusts the provided solar capacity factor profile profile to have the proper time stamps 
+and to have time increments as specified by the user. If the capacity factor profile needs 
+to be expanded (due to the provided capacity factor profile having a finer time increment), 
+then linear interpolation is used. If the capacity facotr profile needs to be reduced (due 
+to the provided capacity factor profile having a coarser time increment), then averaging 
+between proper time steps is used.
+"""
+function adjust_solar_capacity_factor_profile(scenario::Scenario, solar::Solar)::Solar
+    # Initialize the updated Solar struct object
+    solar_ = Dict{String,Any}(string(i) => getfield(solar, i) for i in fieldnames(Solar))
+    println("...preparing solar capacity factor profile")
+
+    # Adjust the time stamps in the capacity factor profile
+    solar_["capacity_factor_profile"] = DataFrames.DataFrame(
+        "timestamp" => collect(
+            Dates.DateTime(scenario.year, 1, 1, 0, 0):Dates.Minute(
+                scenario.interval_length,
+            ):Dates.DateTime(scenario.year, 12, 31, 23, 45),
+        ),
+        "capacity_factor" => check_and_update_solar_capacity_factor_profile(
+            scenario,
+            solar.capacity_factor_profile,
+        ),
+    )
+
+    # Convert Dict to NamedTuple
+    solar_ = (; (Symbol(k) => v for (k, v) in solar_)...)
+
+    # Convert NamedTuple to Solar object
+    solar_ = Solar(; solar_...)
+
+    return solar_
+end
+
+"""
+    check_and_update_solar_capacity_factor_profile(
+        scenario::Scenario,
+        original_capacity_factor_profile::DataFrames.DataFrame,
+    )::Vector{Float64}
+
+Determines whether or not the solar capacity factor profile is already of the correct 
+length. If so, the provided capacity factor profile data is returned. If not, the capacity 
+factor profile data is reduced or expanded prior to being returned.
+"""
+function check_and_update_solar_capacity_factor_profile(
+    scenario::Scenario,
+    original_capacity_factor_profile::DataFrames.DataFrame,
+)::Vector{Float64}
+    # Check the length of the capacity factor profile; update the profile as needed
+    if size(original_capacity_factor_profile, 1) in
+       [Dates.daysinyear(scenario.year) * 24 * i for i in [1, 2, 4]]
+        if size(original_capacity_factor_profile, 1) ==
+           (Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length)
+            # Return the existing capacity factor profile data if it is already of the 
+            # correct length
+            return original_capacity_factor_profile[!, "capacity_factor"]
+        elseif size(original_capacity_factor_profile, 1) >
+               (Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length)
+            # Return a capacity factor profile that has been reduced by averaging between 
+            # time steps
+            return reduce_capacity_factor_profile(
+                scenario,
+                original_capacity_factor_profile,
+                floor(
+                    Int64,
+                    size(original_capacity_factor_profile, 1) /
+                    (Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length),
+                ),
+            )
+        else
+            # Return a capacity factor profile that has been extended using linear 
+            # interpolation
+            return expand_capacity_factor_profile(
+                scenario,
+                original_capacity_factor_profile,
+                floor(
+                    Int64,
+                    (Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length) /
+                    size(original_capacity_factor_profile, 1),
+                ),
+            )
+        end
+    else
+        throw(
+            ErrorException(
+                "The provided capacity factor profile does not have a complete set of " *
+                "time steps. Please try again.",
+            ),
+        )
+    end
+end
+
+"""
+    reduce_capacity_factor_profile(
+        scenario::Scenario,
+        original_capacity_factor_profile::DataFrames.DataFrame,
+        time_step_diff::Int64,
+    )::Vector{Float64}
+
+Reduces the size of the capacity factor profile data by averaging between the time steps 
+that will be subsumed into a single time step.
+"""
+function reduce_capacity_factor_profile(
+    scenario::Scenario,
+    original_capacity_factor_profile::DataFrames.DataFrame,
+    time_step_diff::Int64,
+)::Vector{Float64}
+    # Reduce the size of the provided capacity factor profile according to the time step 
+    # differential
+    if time_step_diff in [2, 4]
+        # Preallocate capacity factor profile values with scenario-specified time steps
+        capacity_factor_profile = zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
+            ),
+        )
+
+        # Reduce the provided capacity factor profile by averaging amongst the proper time 
+        # steps
+        for i in eachindex(capacity_factor_profile)
+            capacity_factor_profile[i] =
+                sum(
+                    original_capacity_factor_profile[!, "capacity_factor"][((i - 1) * time_step_diff + 1):(i * time_step_diff)],
+                ) / time_step_diff
+        end
+
+        # Return the updated capacity factor profile
+        return capacity_factor_profile
+    else
+        throw(
+            ErrorException(
+                "The time step differential is invalid. Please check the capacity factor " *
+                "profile and try again.",
+            ),
+        )
+    end
+end
+
+"""
+    expand_capacity_factor_profile(
+        scenario::Scenario,
+        original_capacity_factor_profile::DataFrames.DataFrame,
+        time_step_diff::Int64,
+    )::Vector{Float64}
+
+Expands the size of the capacity factor profile data by using linear interpolation between 
+the existing time steps.
+"""
+function expand_capacity_factor_profile(
+    scenario::Scenario,
+    original_capacity_factor_profile::DataFrames.DataFrame,
+    time_step_diff::Int64,
+)::Vector{Float64}
+    # Expand the size of the provided capacity factor profile according to the time step 
+    # differential
+    if time_step_diff in [2, 4]
+        # Preallocate capacity factor profile values with scenario-specified time steps
+        capacity_factor_profile = zeros(
+            floor(
+                Int64,
+                Dates.daysinyear(scenario.year) * 24 * 60 / scenario.interval_length,
+            ),
+        )
+
+        # Expand the provided capacity factor profile by linearly interpolating between the 
+        # proper time steps
+        for i in eachindex(original_capacity_factor_profile[!, "capacity_factor"])
+            if i == length(original_capacity_factor_profile[!, "capacity_factor"])
+                capacity_factor_profile[((i - 1) * time_step_diff + 1):(i * time_step_diff)] =
+                    [
+                        original_capacity_factor_profile[!, "capacity_factor"][i] +
+                        (j / time_step_diff) * (
+                            original_capacity_factor_profile[!, "capacity_factor"][1] -
+                            original_capacity_factor_profile[!, "capacity_factor"][i]
+                        ) for j = 0:(time_step_diff - 1)
+                    ]
+            else
+                capacity_factor_profile[((i - 1) * time_step_diff + 1):(i * time_step_diff)] =
+                    [
+                        original_capacity_factor_profile[!, "capacity_factor"][i] +
+                        (j / time_step_diff) * (
+                            original_capacity_factor_profile[!, "capacity_factor"][i + 1] -
+                            original_capacity_factor_profile[!, "capacity_factor"][i]
+                        ) for j = 0:(time_step_diff - 1)
+                    ]
+            end
+        end
+
+        # Return the updated capacity factor profile
+        return capacity_factor_profile
+    else
+        throw(
+            ErrorException(
+                "The time step differential is invalid. Please check the capacity factor " *
+                "profile and try again.",
+            ),
+        )
+    end
+end

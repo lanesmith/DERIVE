@@ -6,7 +6,7 @@
         demand::Demand,
         solar::Solar,
         storage::Storage,
-        electricity_bill::Dict{String,Any},
+        electricity_bill::DataFrames.DataFrame,
         output_filepath::Union{String,Nothing}=nothing,
     )::Dict{String,Any}
 
@@ -21,7 +21,7 @@ function store_investment_cost_results(
     demand::Demand,
     solar::Solar,
     storage::Storage,
-    electricity_bill::Dict{String,Any},
+    electricity_bill::DataFrames.DataFrame,
     output_filepath::Union{String,Nothing}=nothing,
 )::Dict{String,Any}
     # Initialize the investment cost results
@@ -289,7 +289,7 @@ function store_investment_cost_results(
 
     # Calculate the payback period
     investment_cost_results["payback_period"] /=
-        (base_total_charge - electricity_bill["total_charge"])
+        (base_total_charge - electricity_bill[13, "total_charge"])
 
     # Save the electricity bill results, if desired
     if !isnothing(output_filepath)
